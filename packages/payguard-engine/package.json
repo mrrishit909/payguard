@@ -1,0 +1,13 @@
+{
+  "name": "@payguard/engine",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "PayGuard pure deterministic engine (boundary stub; implementation owned by assignment 02).",
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "scripts": {
+    "test": "node --test test/"
+  }
+}

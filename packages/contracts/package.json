@@ -1,0 +1,14 @@
+{
+  "name": "@payguard/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "PayGuard v1 schema versions, enums, limits and JSDoc type contracts. No runtime dependencies.",
+  "exports": {
+    ".": "./src/index.js",
+    "./types": "./src/types.js"
+  },
+  "scripts": {
+    "test": "node --test test/"
+  }
+}

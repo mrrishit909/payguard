@@ -1,0 +1,15 @@
+{
+  "name": "payguard",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "PayGuard synthetic-data vertical slice. Dependency-free; Node built-ins only.",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "test": "node --test",
+    "test:contracts": "node --test packages/contracts/test/",
+    "test:architecture": "node --test tests/architecture/"
+  }
+}
