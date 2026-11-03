@@ -16,6 +16,14 @@ Correcting evidence in the reviewer journey means the app producing a new bundle
 5. Schema: exact `schemaVersion`, `dataClassification === 'SYNTHETIC'`, `currency === 'USD'`, required fields, **unknown fields or columns rejected** (`UNKNOWN_FIELD`/`UNKNOWN_COLUMN`, each listed by name), ID grammar, unique `lineId`s, strict amounts and dates, `periodEnd ≥ periodStart`.
 6. Collect all errors (bounded), then fail as a whole, or return the canonical value plus provenance (raw string, JSON pointer or row/column, importBatchId).
 
+`analyze` does not trust that `imported` came from the parser, because it may be JSON-deserialized from storage. It fully validates the canonical `ImportedApplication` envelope before computing any totals:
+- exact own keys `application`/`importBatch`/`provenance`
+- the canonical application and lines (1..`MAX_ROWS`)
+- `importBatch` (ID, `json|csv`, `byteLength` 0..`MAX_UPLOAD_BYTES`, `sourceName` ≤ 500 chars)
+- provenance: exactly one entry per canonical field, `sourceId` = batch id, the batch format, a bounded location, and a `rawValue` ≤ 500 chars that re-parses to the canonical value
+
+Schema membership everywhere (bundle, envelope, report, events) uses own properties on plain objects, meaning the prototype is `Object.prototype` or `null`. Own keys such as `toString`, `constructor` or `__proto__` are `UNKNOWN_FIELD`. Inherited required fields count as missing, and non-plain input returns `INVALID_TYPE` instead of throwing.
+
 Cross-entity checks happen in `analyze`. They cover application `contractId` matching the bundle contract, every application `lineId` existing in the SOV, change orders referencing existing lines, unique IDs across each entity type (payments, COs, documents, certifications) and unique `paymentId`s. A violation returns `ok:false` with no totals.
 
 Unknown columns are **rejected** rather than ignored. Silently dropping a column could hide a misunderstood field (e.g. `retainage_override`), and strict rejection keeps "no partial success" simple. The error lists every unknown column name.

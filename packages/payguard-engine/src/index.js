@@ -121,7 +121,12 @@ export function buildReport(args) { return buildReportSnapshot(args); }
 /** @param {Report} report @returns {string} Canonical JSON (sorted keys, LF, trailing newline). */
 export function serializeReportJson(report) { return serializeJson(report); }
 
-/** @param {string} text @returns {Result<Report>} Strict inverse of serializeReportJson. */
+/**
+ * Strict inverse of serializeReportJson for UNTRUSTED text. Success means the report is schema-valid
+ * and internally consistent; it is an unverified import, not proof of authenticity: semanticHash is an
+ * unkeyed input fingerprint, not a signature, and figures are not recomputed from source inputs.
+ * @param {string} text @returns {Result<Report>}
+ */
 export function parseReportJson(text) { return parseJson(text); }
 
 /** @param {Report} report @returns {string} CSV_EXPORT_COLUMNS, CRLF, formula-safe text cells. */

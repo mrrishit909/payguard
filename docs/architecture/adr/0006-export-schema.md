@@ -7,6 +7,9 @@ Status: ACCEPTED for foundation (pending Codex review). Date: 2026-11-03.
 - Always present: `dataClassification: "SYNTHETIC"`, `syntheticLabel`, `moneyUnit: "USD_CENTS"`, `engineContractVersion`, `semanticHash`, `ruleVersions`, `limitations[]`.
 - Money uses integer cents in `...Cents` fields, and every total is cumulative or current as named in `ReconciliationTotals`.
 - `parseReportJson` is strict: unknown keys, wrong schema version, non-integer cents and a missing synthetic label all fail.
+- Report text is untrusted. `parseReportJson` never throws. Before freezing anything, it validates every nested structure using own-property key sets on plain objects: `ids` (ID grammar), `period` (calendar dates), `readiness` (`NOT_READY`/`NO_BLOCKING_FINDINGS` only), lines, rule versions and evaluations, findings (enums, FieldRefs, scalar observed/expected, deterministic `findingId`), finding statuses, review events (replayed through `appendReviewEvent`), provenance (complete, from one batch, raw values re-parse to the reported values) and the exact v1 `limitations`. Arrays and strings are bounded.
+- It checks arithmetic that the report itself determines: line and total PG-CALC identities, line sums, the over-cap/overpayment/claim-mismatch findings implied by the totals, and readiness against BLOCKING findings. Retainage is range-checked only, because the basis points live in the project bundle.
+- **Boundary:** a parsed report is an *unverified import*. It is not an authoritative or independently verified calculation. `semanticHash` is an unkeyed fingerprint of the semantic input, not a signature, and it proves nothing about who produced the report. Recomputing requires the original bundle and application through `analyze`.
 
 ## CSV (`payguard.report-csv.v1`)
 - Columns are exactly `CSV_EXPORT_COLUMNS` in that order. Rows use `record_type` ∈ META, TOTAL, LINE, FINDING, REVIEW_EVENT and are emitted in that group order, sorted inside each group by ID.

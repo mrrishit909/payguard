@@ -1,10 +1,10 @@
 // Atomic application import for JSON and CSV (ADR-0004). Both formats converge on the same
 // canonical PaymentApplication; only provenance locations differ.
 import {
-  SCHEMA_VERSIONS, DATA_CLASSIFICATION, CURRENCY, IMPORT_LIMITS, ID_PATTERN, CSV_IMPORT_COLUMNS,
+  SCHEMA_VERSIONS, DATA_CLASSIFICATION, CURRENCY, IMPORT_LIMITS, MONEY_LIMITS, ID_PATTERN, CSV_IMPORT_COLUMNS,
 } from '../../contracts/src/constants.js';
 import { parseCents } from './money.js';
-import { cmp, byKey, deepFreeze, isValidDate } from './canonical.js';
+import { cmp, byKey, deepFreeze, isValidDate, isPlainObject, exactKeys } from './canonical.js';
 
 const ID_RE = new RegExp(ID_PATTERN);
 
@@ -151,7 +151,112 @@ function build(appCells, lineCells, format, meta, byteLength, errors) {
   };
 }
 
-const isPlain = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
+const isPlain = isPlainObject;
+
+const PROVENANCE_JSON_KEYS = ['ref', 'sourceFormat', 'sourceId', 'jsonPointer', 'rawValue'];
+const PROVENANCE_CSV_KEYS = ['ref', 'sourceFormat', 'sourceId', 'row', 'column', 'rawValue'];
+const isBoundedString = (v) => typeof v === 'string' && v.length <= IMPORT_LIMITS.MAX_STRING_CHARS;
+
+/** Canonical value implied by a raw cell, or undefined; mirrors cell() without recording errors. */
+function rawToCanonical(kind, raw) {
+  const sink = new ErrorList();
+  const v = cell(kind, 'rawValue', raw, {}, sink);
+  return sink.any ? undefined : v;
+}
+
+/**
+ * Validates provenance for an untrusted canonical application (ADR-0004/0005). Each canonical
+ * application and line field must have exactly one entry from the given batch and format,
+ * with a bounded location and a raw value that re-parses to the canonical value.
+ * @param {unknown} provenance
+ * @param {{ application: object, lines: object[], importBatchId: string, sourceFormat?: string }} expected
+ * @param {string} path  JSON Pointer prefix for error locations.
+ * @param {ErrorList} errors
+ */
+export function checkProvenance(provenance, { application, lines, importBatchId, sourceFormat }, path, errors) {
+  const wanted = new Map();
+  const want = (entity, id, field, kind, value) => wanted.set(`${entity}\u0000${id}\u0000${field}`, { kind, value });
+  for (const [name, , kind] of APP_FIELDS) {
+    const field = canonicalName(name, kind);
+    const value = kind === 'schema' ? SCHEMA_VERSIONS.APPLICATION_IMPORT : kind === 'classification' ? DATA_CLASSIFICATION : application[field];
+    want('application', application.applicationId, field, kind, value);
+  }
+  for (const l of lines) for (const [name, , kind] of LINE_FIELDS) want('applicationLine', l.lineId, canonicalName(name, kind), kind, l[canonicalName(name, kind)]);
+  if (!Array.isArray(provenance)) { errors.add('INVALID_TYPE', 'Provenance must be an array.', { path }); return; }
+  if (provenance.length !== wanted.size) {
+    errors.add('MISSING_FIELD', `Provenance must have exactly one entry per canonical application field (${wanted.size}).`, { path });
+    if (provenance.length > wanted.size) return;
+  }
+  let format = sourceFormat;
+  const seen = new Set();
+  provenance.forEach((p, i) => {
+    const at = { path: `${path}/${i}` };
+    const keys = p?.sourceFormat === 'csv' ? PROVENANCE_CSV_KEYS : PROVENANCE_JSON_KEYS;
+    if (!exactKeys(p, keys) || !exactKeys(p.ref, ['entity', 'id', 'field'])) { errors.add('INVALID_TYPE', 'Provenance entry fields do not match the schema.', at); return; }
+    if (format === undefined) format = p.sourceFormat;
+    if (!['json', 'csv'].includes(p.sourceFormat) || p.sourceFormat !== format) errors.add('INVALID_ENUM', 'Provenance sourceFormat must match the import batch.', at);
+    if (p.sourceId !== importBatchId) errors.add('UNKNOWN_REFERENCE', 'Provenance sourceId must be the import batch id.', at);
+    const locOk = p.sourceFormat === 'csv'
+      ? Number.isSafeInteger(p.row) && p.row >= 1 && p.row <= IMPORT_LIMITS.MAX_ROWS && CSV_IMPORT_COLUMNS.includes(p.column)
+      : isBoundedString(p.jsonPointer) && p.jsonPointer.startsWith('/');
+    if (!locOk) errors.add('INVALID_TYPE', 'Provenance location is malformed or out of bounds.', at);
+    if (!isBoundedString(p.rawValue)) { errors.add('STRING_TOO_LONG', 'Provenance rawValue must be a string of at most 500 characters.', at); return; }
+    const key = `${p.ref.entity}\u0000${p.ref.id}\u0000${p.ref.field}`;
+    const w = typeof p.ref.entity === 'string' && typeof p.ref.id === 'string' && typeof p.ref.field === 'string' ? wanted.get(key) : undefined;
+    if (!w) { errors.add('UNKNOWN_REFERENCE', 'Provenance references a field that is not in the application.', at); return; }
+    if (seen.has(key)) { errors.add('DUPLICATE_ID', 'Duplicate provenance entry.', at); return; }
+    seen.add(key);
+    if (rawToCanonical(w.kind, p.rawValue) !== w.value) errors.add('UNKNOWN_REFERENCE', 'Provenance rawValue does not match the canonical value.', at);
+  });
+}
+
+const APPLICATION_KEYS = ['applicationId', 'contractId', 'currency', 'periodStart', 'periodEnd', 'reviewDate', 'claimedCurrentDueCents', 'lines'];
+const APP_LINE_KEYS = ['lineId', 'completedToDateCents', 'storedToDateCents'];
+
+/**
+ * Full schema check of an untrusted canonical ImportedApplication envelope (e.g. JSON-deserialized
+ * from storage rather than produced by parseApplicationJson/Csv). Records errors; never throws.
+ * @param {unknown} imported
+ * @param {ErrorList} errors
+ */
+export function checkImportedEnvelope(imported, errors) {
+  if (!exactKeys(imported, ['application', 'importBatch', 'provenance'])) {
+    errors.add('INVALID_TYPE', 'Imported application must be a plain object with exactly application, importBatch and provenance.', { path: '/imported' });
+    return;
+  }
+  const a = imported.application;
+  if (!exactKeys(a, APPLICATION_KEYS)) { errors.add('INVALID_TYPE', 'Imported application fields do not match the canonical schema.', { path: '/imported/application' }); return; }
+  for (const k of ['applicationId', 'contractId']) if (typeof a[k] !== 'string' || !ID_RE.test(a[k])) errors.add('INVALID_ID', `Invalid ${k}.`, { path: `/imported/application/${k}` });
+  for (const k of ['periodStart', 'periodEnd', 'reviewDate']) if (!isValidDate(a[k])) errors.add('INVALID_DATE', `Invalid ${k}.`, { path: `/imported/application/${k}` });
+  if (a.currency !== CURRENCY) errors.add('UNSUPPORTED_CURRENCY', 'Only USD is supported.', { path: '/imported/application/currency' });
+  const centsOk = (v) => Number.isSafeInteger(v) && v >= 0 && v <= MONEY_LIMITS.MAX_INPUT_AMOUNT_CENTS;
+  if (!centsOk(a.claimedCurrentDueCents)) errors.add('INVALID_AMOUNT', 'Invalid claimed amount.', { path: '/imported/application/claimedCurrentDueCents' });
+  if (isValidDate(a.periodStart) && isValidDate(a.periodEnd) && a.periodEnd < a.periodStart) errors.add('PERIOD_END_BEFORE_START', 'Period end is before period start.', { path: '/imported/application/periodEnd' });
+  if (!Array.isArray(a.lines) || a.lines.length === 0 || a.lines.length > IMPORT_LIMITS.MAX_ROWS) {
+    errors.add('INVALID_TYPE', `Application lines must be an array of 1..${IMPORT_LIMITS.MAX_ROWS} entries.`, { path: '/imported/application/lines' });
+    return;
+  }
+  const seen = new Set();
+  a.lines.forEach((l, i) => {
+    const p = `/imported/application/lines/${i}`;
+    if (!exactKeys(l, APP_LINE_KEYS)) { errors.add('INVALID_TYPE', 'Application line fields do not match the canonical schema.', { path: p }); return; }
+    if (typeof l.lineId !== 'string' || !ID_RE.test(l.lineId)) errors.add('INVALID_ID', 'Invalid lineId.', { path: `${p}/lineId` });
+    else if (seen.has(l.lineId)) errors.add('DUPLICATE_ID', `Duplicate line ${l.lineId}.`, { path: `${p}/lineId` });
+    seen.add(l.lineId);
+    for (const k of ['completedToDateCents', 'storedToDateCents']) if (!centsOk(l[k])) errors.add('INVALID_AMOUNT', `Invalid ${k}.`, { path: `${p}/${k}` });
+  });
+  const b = imported.importBatch;
+  if (!exactKeys(b, ['importBatchId', 'sourceFormat', 'byteLength', 'sourceName'])) {
+    errors.add('INVALID_TYPE', 'importBatch fields do not match the canonical schema.', { path: '/imported/importBatch' });
+    return;
+  }
+  if (typeof b.importBatchId !== 'string' || !ID_RE.test(b.importBatchId)) errors.add('INVALID_ID', 'Invalid importBatchId.', { path: '/imported/importBatch/importBatchId' });
+  if (!['json', 'csv'].includes(b.sourceFormat)) errors.add('INVALID_ENUM', 'Unsupported sourceFormat.', { path: '/imported/importBatch/sourceFormat' });
+  if (!Number.isSafeInteger(b.byteLength) || b.byteLength < 0 || b.byteLength > IMPORT_LIMITS.MAX_UPLOAD_BYTES) errors.add('INVALID_TYPE', 'Invalid byteLength.', { path: '/imported/importBatch/byteLength' });
+  if (!isBoundedString(b.sourceName)) errors.add('STRING_TOO_LONG', 'sourceName must be a string of at most 500 characters.', { path: '/imported/importBatch/sourceName' });
+  if (errors.any) return;
+  checkProvenance(imported.provenance, { application: a, lines: a.lines, importBatchId: b.importBatchId, sourceFormat: b.sourceFormat }, '/imported/provenance', errors);
+}
 
 export function importJson(bytes, meta) {
   const errors = new ErrorList();

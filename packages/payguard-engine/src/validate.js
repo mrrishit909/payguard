@@ -4,10 +4,9 @@ import {
   CHANGE_ORDER_STATUS, PAYMENT_STATUS, DOCUMENT_TYPE, RULE_KIND, FINDING_CODES, RETAINAGE_BASE, ROUNDING,
 } from '../../contracts/src/constants.js';
 import { ErrorList, fail } from './import.js';
-import { byKey, cmp, clone, deepFreeze, isValidDate } from './canonical.js';
+import { byKey, cmp, clone, deepFreeze, isValidDate, isPlainObject as isPlain, hasOwn } from './canonical.js';
 
 const ID_RE = new RegExp(ID_PATTERN);
-const isPlain = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 
 /** Field kinds: id | string | cents | bps | int+ | bool | true | date | date? | enum:<values> | const:<value> */
 const SHAPES = {
@@ -30,10 +29,11 @@ const SHAPES = {
 const ID_KEY = { sovLines: 'lineId', changeOrders: 'changeOrderId', priorPayments: 'paymentId', priorCertifications: 'certificationId', documents: 'documentId' };
 
 function checkObject(obj, shape, path, errors) {
-  if (!isPlain(obj)) { errors.add('INVALID_TYPE', `${path || '/'} must be an object.`, { path }); return false; }
-  for (const k of Object.keys(obj)) if (!(k in SHAPES[shape])) errors.add('UNKNOWN_FIELD', `Unknown field ${k.slice(0, 64)}.`, { path: `${path}/${k.slice(0, 64)}` });
+  if (!isPlain(obj)) { errors.add('INVALID_TYPE', `${path || '/'} must be a plain JSON object (no inherited fields).`, { path }); return false; }
+  // Own-property membership only: Object.prototype names (toString, constructor, __proto__) are unknown fields.
+  for (const k of Object.keys(obj)) if (!hasOwn(SHAPES[shape], k)) errors.add('UNKNOWN_FIELD', `Unknown field ${k.slice(0, 64)}.`, { path: `${path}/${k.slice(0, 64)}` });
   for (const [k, [kind, arg, code]] of Object.entries(SHAPES[shape])) {
-    const v = obj[k]; const p = `${path}/${k}`; const loc = { path: p };
+    const v = hasOwn(obj, k) ? obj[k] : undefined; const p = `${path}/${k}`; const loc = { path: p };
     if (v === undefined) { if (arg !== 'optional') errors.add('MISSING_FIELD', `Required field ${p} is missing.`, loc); continue; }
     switch (kind) {
       case 'const': if (v !== arg) errors.add(code, `Unsupported value at ${p}.`, loc); break;

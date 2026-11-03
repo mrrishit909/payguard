@@ -47,6 +47,31 @@ export function isValidDate(s) {
   return d <= days;
 }
 
+const UTC_RE = /^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2}):(\d{2})(\.\d{1,3})?Z$/;
+
+/** Calendar- and clock-valid 'YYYY-MM-DDThh:mm:ss[.sss]Z' (no leap seconds, no offsets). */
+export function isValidUtcTimestamp(s) {
+  const m = typeof s === 'string' ? UTC_RE.exec(s) : null;
+  return m !== null && isValidDate(m[1]) && Number(m[2]) <= 23 && Number(m[3]) <= 59 && Number(m[4]) <= 59;
+}
+
+/** True only for JSON-like plain objects: prototype is Object.prototype or null (no class instances, no inheritance chains). */
+export function isPlainObject(v) {
+  if (v === null || typeof v !== 'object' || Array.isArray(v)) return false;
+  const proto = Object.getPrototypeOf(v);
+  return proto === Object.prototype || proto === null;
+}
+
+export const hasOwn = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
+
+/** Own enumerable keys of `o` equal `required` plus any subset of `optional` (no inherited fields). */
+export function exactKeys(o, required, optional = []) {
+  if (!isPlainObject(o)) return false;
+  const keys = Object.keys(o);
+  if (!required.every((k) => hasOwn(o, k))) return false;
+  return keys.every((k) => required.includes(k) || optional.includes(k));
+}
+
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September',
   'October', 'November', 'December'];
 

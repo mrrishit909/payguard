@@ -34,4 +34,5 @@ Each canonical field originating from upload or seed has a `ProvenanceEntry` wit
 - Types: `ANALYSIS_RUN` (records each run's semantic hash), `NOTE`, and `DISPOSITION` (ACKNOWLEDGED / CORRECTION_SUBMITTED / NEEDS_FOLLOW_UP).
 - **No resolve or dismiss action exists.** `FindingStatus` is *derived*: a finding is `NOT_PRESENT_IN_LATEST_RUN` only when a later `ANALYSIS_RUN` over changed input no longer produces that `findingId`. Original findings remain in prior analyses and history (spec test 7).
 - `appendReviewEvent` returns a new frozen array. It rejects non-increasing `sequence`, unknown `findingId` for the referenced analysis, and notes over 2,000 chars. Notes are inert text.
-- `occurredAt` is caller-supplied and excluded from semantic hashes.
+- `occurredAt` is caller-supplied and excluded from semantic hashes. It must match `YYYY-MM-DDThh:mm:ss[.s{1,3}]Z` and be calendar- and clock-valid: real dates including leap days, hours 00–23, minutes and seconds 00–59, no leap seconds and no offsets. Explicit fractional seconds are kept verbatim. `generatedAt` follows the same rule.
+- `findingIds` context remains optional in v1. When it is omitted, NOTE/DISPOSITION findingIds are not checked against the analysis. Whether the UI must supply it is an open orchestrator decision.

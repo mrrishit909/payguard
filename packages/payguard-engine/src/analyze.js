@@ -1,17 +1,16 @@
 // Reconciliation (PG-CALC-01..04), configured document rule (PG-REQ-xx) and findings (ADR-0003/0005).
 import {
   SCHEMA_VERSIONS, DATA_CLASSIFICATION, ENGINE_CONTRACT_VERSION, CALCULATION_RULES, FINDING_CODES,
-  FINDING_SEVERITY, FINDING_CATEGORY, RULE_OUTCOME, READINESS, MONEY_LIMITS, ID_PATTERN, CURRENCY,
+  FINDING_SEVERITY, FINDING_CATEGORY, RULE_OUTCOME, READINESS,
 } from '../../contracts/src/constants.js';
 import { add, sub, sum, retainageHalfUp, formatCentsText, ArithmeticOverflow } from './money.js';
-import { cmp, byKey, clone, deepFreeze, isValidDate, periodLabel } from './canonical.js';
+import { cmp, byKey, clone, deepFreeze, periodLabel } from './canonical.js';
 import { validateBundle } from './validate.js';
-import { ErrorList, fail } from './import.js';
+import { ErrorList, fail, checkImportedEnvelope } from './import.js';
 
 /** Pseudo rule identity used only when no REQUIRED_SIGNED_DOCUMENT rule is configured. */
 export const NOT_CONFIGURED_RULE = Object.freeze({ ruleId: 'PG-REQ-NONE', ruleVersion: 0 });
 
-const ID_RE = new RegExp(ID_PATTERN);
 const SEVERITY_RANK = { BLOCKING: 0, WARNING: 1, INFO: 2 };
 const usd = (c) => formatCentsText(c, true);
 const signedUsd = (c) => (c > 0 ? `+${usd(c)}` : usd(c));
@@ -27,27 +26,6 @@ function finding({ code, severity, category, rule, subject, inputRefs, observed,
     ...(formula ? { formula } : {}), rationale, remediation,
     ...(source ? { source } : {}), ...(rejectedCandidates ? { rejectedCandidates } : {}),
   };
-}
-
-function checkImported(imported, errors) {
-  const a = imported?.application;
-  const centsOk = (v) => Number.isSafeInteger(v) && v >= 0 && v <= MONEY_LIMITS.MAX_INPUT_AMOUNT_CENTS;
-  if (!a || typeof a !== 'object' || !Array.isArray(a.lines) || !Array.isArray(imported.provenance)) {
-    errors.add('INVALID_TYPE', 'Imported application is missing or malformed.', { path: '/imported' });
-    return;
-  }
-  for (const k of ['applicationId', 'contractId']) if (typeof a[k] !== 'string' || !ID_RE.test(a[k])) errors.add('INVALID_ID', `Invalid ${k}.`, { path: `/imported/application/${k}` });
-  for (const k of ['periodStart', 'periodEnd', 'reviewDate']) if (!isValidDate(a[k])) errors.add('INVALID_DATE', `Invalid ${k}.`, { path: `/imported/application/${k}` });
-  if (a.currency !== CURRENCY) errors.add('UNSUPPORTED_CURRENCY', 'Only USD is supported.', { path: '/imported/application/currency' });
-  if (!centsOk(a.claimedCurrentDueCents)) errors.add('INVALID_AMOUNT', 'Invalid claimed amount.', { path: '/imported/application/claimedCurrentDueCents' });
-  if (isValidDate(a.periodStart) && isValidDate(a.periodEnd) && a.periodEnd < a.periodStart) errors.add('PERIOD_END_BEFORE_START', 'Period end is before period start.', { path: '/imported/application/periodEnd' });
-  const seen = new Set();
-  a.lines.forEach((l, i) => {
-    if (typeof l?.lineId !== 'string' || !ID_RE.test(l.lineId)) errors.add('INVALID_ID', 'Invalid lineId.', { path: `/imported/application/lines/${i}/lineId` });
-    else if (seen.has(l.lineId)) errors.add('DUPLICATE_ID', `Duplicate line ${l.lineId}.`, { path: `/imported/application/lines/${i}/lineId` });
-    seen.add(l?.lineId);
-    for (const k of ['completedToDateCents', 'storedToDateCents']) if (!centsOk(l?.[k])) errors.add('INVALID_AMOUNT', `Invalid ${k}.`, { path: `/imported/application/lines/${i}/${k}` });
-  });
 }
 
 function evaluateRule(rule, bundle, app) {
@@ -228,7 +206,7 @@ export function analyzeInput(input) {
   const b = validateBundle(input?.bundle);
   if (!b.ok) return b;
   const errors = new ErrorList();
-  checkImported(input.imported, errors);
+  checkImportedEnvelope(input.imported, errors);
   if (errors.any) return fail(errors);
   const imported = clone(input.imported);
   imported.application.lines.sort(byKey('lineId'));
