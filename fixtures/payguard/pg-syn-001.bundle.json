@@ -1,0 +1,40 @@
+{
+  "schemaVersion": "payguard.project.v1",
+  "dataClassification": "SYNTHETIC",
+  "bundleId": "PG-SYN-001",
+  "project": { "projectId": "PG-P-001", "name": "Atlas Demo School Fit-Out (SYNTHETIC, fictional)" },
+  "contract": {
+    "contractId": "PG-C-001",
+    "projectId": "PG-P-001",
+    "currency": "USD",
+    "retainage": { "basisPoints": 1000, "base": "COMPLETED_PLUS_STORED", "rounding": "HALF_UP_PER_LINE_TO_CENT" }
+  },
+  "sovLines": [
+    { "lineId": "L1", "contractId": "PG-C-001", "description": "Mechanical rough-in", "originalValueCents": 10000000 },
+    { "lineId": "L2", "contractId": "PG-C-001", "description": "Controls", "originalValueCents": 5000000 }
+  ],
+  "changeOrders": [
+    { "changeOrderId": "CO-A-01", "contractId": "PG-C-001", "lineId": "L1", "amountCents": 1000000, "status": "APPROVED" },
+    { "changeOrderId": "CO-P-01", "contractId": "PG-C-001", "lineId": "L2", "amountCents": 500000, "status": "PENDING" }
+  ],
+  "priorPayments": [
+    { "paymentId": "PAY-001", "contractId": "PG-C-001", "amountCents": 4050000, "status": "POSTED", "postedDate": "2026-09-25" }
+  ],
+  "priorCertifications": [
+    { "certificationId": "CERT-002", "contractId": "PG-C-001", "netCertifiedCents": 4500000 }
+  ],
+  "documents": [
+    { "documentId": "DOC-WV-OCT-UNSIGNED", "projectId": "PG-P-001", "documentType": "CONDITIONAL_WAIVER",
+      "periodStart": "2026-10-01", "periodEnd": "2026-10-31", "signed": false,
+      "title": "SYNTHETIC conditional waiver October 2026 (unsigned draft)" },
+    { "documentId": "DOC-WV-SEP-SIGNED", "projectId": "PG-P-001", "documentType": "CONDITIONAL_WAIVER",
+      "periodStart": "2026-09-01", "periodEnd": "2026-09-30", "signed": true,
+      "title": "SYNTHETIC conditional waiver September 2026 (signed)" }
+  ],
+  "rules": [
+    { "ruleId": "PG-REQ-01", "ruleVersion": 1, "kind": "REQUIRED_SIGNED_DOCUMENT", "documentType": "CONDITIONAL_WAIVER",
+      "matchScope": "SAME_PROJECT_AND_EXACT_APPLICATION_PERIOD", "findingCode": "MISSING_REQUIRED_SIGNED_WAIVER",
+      "sourceClause": "Demo Exhibit B §3", "illustrative": true,
+      "remediation": "Attach signed October conditional waiver and request review." }
+  ]
+}

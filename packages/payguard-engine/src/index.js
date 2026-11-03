@@ -1,12 +1,18 @@
-// PayGuard pure engine — PUBLIC BOUNDARY STUB.
-// Created by architecture (A01) to fix signatures; ownership transfers to the engine
-// assignment (A02), which replaces each body. Exported names must equal
-// ENGINE_PUBLIC_API in packages/contracts (enforced by tests/architecture).
+// PayGuard pure engine — public boundary. Exported names must equal ENGINE_PUBLIC_API in
+// packages/contracts (enforced by tests/architecture).
 //
 // Engine rules (ADR-0002): pure functions; no I/O, network, storage, DOM, clock, randomness,
 // locale, timezone or node:* imports; deterministic for identical canonical input; never
 // throws for invalid user input (returns Result failures); no financial totals on failure.
 // Only computeImportBatchId and computeSemanticHash are async (WebCrypto SHA-256).
+
+import { ENGINE_CONTRACT_VERSION } from '../../contracts/src/constants.js';
+import { parseCents, formatCentsText } from './money.js';
+import { canonicalJson, sha256Hex } from './canonical.js';
+import { importJson, importCsv } from './import.js';
+import { validateBundle } from './validate.js';
+import { analyzeInput } from './analyze.js';
+import { appendEvent, buildReportSnapshot, serializeJson, parseJson, serializeCsv } from './report.js';
 
 /** @typedef {import('../../contracts/src/types.js').Cents} Cents */
 /** @typedef {import('../../contracts/src/types.js').ProjectBundle} ProjectBundle */
@@ -20,31 +26,30 @@
  * @typedef {import('../../contracts/src/types.js').Result<T>} Result
  */
 
-/** @param {string} name @returns {never} */
-function notImplemented(name) {
-  throw new Error(`NOT_IMPLEMENTED: ${name} (owned by assignment 02-PAYGUARD-ENGINE)`);
-}
-
 /**
  * Strict decimal string -> integer cents (DECIMAL_AMOUNT_PATTERN, <= MAX_INPUT_AMOUNT_CENTS).
  * @param {string} text
  * @returns {Result<Cents>}
  */
-export function parseDecimalToCents(text) { return notImplemented('parseDecimalToCents'); }
+export function parseDecimalToCents(text) {
+  const r = parseCents(text);
+  return r.ok ? r : { ok: false, errors: [{ code: r.code, message: 'Amount must be a non-negative decimal of at most 1000000000.00 with up to two places.' }] };
+}
 
 /**
- * Integer cents -> '-1234.56' style decimal string; never '-0.00'.
+ * Integer cents -> '-1234.56' style decimal string; never '-0.00'. Throws TypeError for
+ * non-safe-integer input (programmer error, not user input).
  * @param {Cents} cents
  * @returns {string}
  */
-export function formatCents(cents) { return notImplemented('formatCents'); }
+export function formatCents(cents) { return formatCentsText(cents); }
 
 /**
  * 'IB-' + first 16 hex chars of SHA-256(bytes). Same bytes => same batch id (idempotent reimport).
  * @param {Uint8Array} bytes
  * @returns {Promise<string>}
  */
-export async function computeImportBatchId(bytes) { return notImplemented('computeImportBatchId'); }
+export async function computeImportBatchId(bytes) { return `IB-${(await sha256Hex(bytes)).slice(0, 16)}`; }
 
 /**
  * Size check BEFORE decoding; fatal UTF-8 decode; strict schema; atomic.
@@ -52,7 +57,7 @@ export async function computeImportBatchId(bytes) { return notImplemented('compu
  * @param {{ importBatchId: string, sourceName: string }} meta
  * @returns {Result<ImportedApplication>}
  */
-export function parseApplicationJson(bytes, meta) { return notImplemented('parseApplicationJson'); }
+export function parseApplicationJson(bytes, meta) { return importJson(bytes, meta); }
 
 /**
  * RFC 4180 subset; exact CSV_IMPORT_COLUMNS header; same canonical output as JSON.
@@ -60,14 +65,14 @@ export function parseApplicationJson(bytes, meta) { return notImplemented('parse
  * @param {{ importBatchId: string, sourceName: string }} meta
  * @returns {Result<ImportedApplication>}
  */
-export function parseApplicationCsv(bytes, meta) { return notImplemented('parseApplicationCsv'); }
+export function parseApplicationCsv(bytes, meta) { return importCsv(bytes, meta); }
 
 /**
  * Validates a seeded/canonical project bundle (unique IDs, references, enums, ranges).
  * @param {unknown} bundle
  * @returns {Result<ProjectBundle>}
  */
-export function validateProjectBundle(bundle) { return notImplemented('validateProjectBundle'); }
+export function validateProjectBundle(bundle) { return validateBundle(bundle); }
 
 /**
  * Cross-validates bundle + application, reconciles, evaluates configured rules, emits findings.
@@ -75,7 +80,7 @@ export function validateProjectBundle(bundle) { return notImplemented('validateP
  * @param {AnalysisInput} input
  * @returns {Result<Analysis>}
  */
-export function analyze(input) { return notImplemented('analyze'); }
+export function analyze(input) { return analyzeInput(input); }
 
 /**
  * Hex SHA-256 over canonical JSON (sorted keys, ID-sorted arrays) of the semantic content:
@@ -84,15 +89,26 @@ export function analyze(input) { return notImplemented('analyze'); }
  * @param {Analysis} analysis
  * @returns {Promise<string>}
  */
-export async function computeSemanticHash(analysis) { return notImplemented('computeSemanticHash'); }
+export async function computeSemanticHash(analysis) {
+  const content = {
+    bundle: analysis.canonicalInput.bundle,
+    application: analysis.canonicalInput.imported.application,
+    ruleVersions: analysis.ruleVersions,
+    engineContractVersion: ENGINE_CONTRACT_VERSION,
+  };
+  return sha256Hex(new TextEncoder().encode(canonicalJson(content)));
+}
 
 /**
  * Append-only: returns a NEW frozen array; validates sequence, references and note bounds.
+ * Optional `options.findingIds` (finding ids of the referenced analysis) enables the
+ * unknown-findingId check from ADR-0005; NOTE/DISPOSITION must cite a recorded ANALYSIS_RUN hash.
  * @param {readonly ReviewEvent[]} history
  * @param {ReviewEvent} event
+ * @param {{ findingIds?: Iterable<string> }} [options]
  * @returns {Result<readonly ReviewEvent[]>}
  */
-export function appendReviewEvent(history, event) { return notImplemented('appendReviewEvent'); }
+export function appendReviewEvent(history, event, options) { return appendEvent(history, event, options); }
 
 /**
  * Builds an immutable report snapshot. `generatedAt` is supplied by the caller (no clock).
@@ -100,13 +116,13 @@ export function appendReviewEvent(history, event) { return notImplemented('appen
  * @param {{ analysis: Analysis, semanticHash: string, priorAnalyses: { analysis: Analysis, semanticHash: string }[], reviewEvents: readonly ReviewEvent[], generatedAt: string }} args
  * @returns {Report}
  */
-export function buildReport(args) { return notImplemented('buildReport'); }
+export function buildReport(args) { return buildReportSnapshot(args); }
 
 /** @param {Report} report @returns {string} Canonical JSON (sorted keys, LF, trailing newline). */
-export function serializeReportJson(report) { return notImplemented('serializeReportJson'); }
+export function serializeReportJson(report) { return serializeJson(report); }
 
 /** @param {string} text @returns {Result<Report>} Strict inverse of serializeReportJson. */
-export function parseReportJson(text) { return notImplemented('parseReportJson'); }
+export function parseReportJson(text) { return parseJson(text); }
 
 /** @param {Report} report @returns {string} CSV_EXPORT_COLUMNS, CRLF, formula-safe text cells. */
-export function serializeReportCsv(report) { return notImplemented('serializeReportCsv'); }
+export function serializeReportCsv(report) { return serializeCsv(report); }

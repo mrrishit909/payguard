@@ -41,8 +41,13 @@ export const MONEY_LIMITS = deepFreeze({
   MAX_BASIS_POINTS: 10_000,
 });
 
-/** Strict decimal grammar for imported money: no sign, exponent, separators, or > 2 decimals. */
-export const DECIMAL_AMOUNT_PATTERN = '^(0|[1-9][0-9]{0,8})(\\.[0-9]{1,2})?$';
+/**
+ * Strict decimal grammar for imported money: no sign, exponent, separators, or > 2 decimals.
+ * Upper bound is exactly MAX_INPUT_AMOUNT_CENTS: '1000000000', '.0' and '.00' are accepted;
+ * '1000000000.01' and above are rejected (A02 correctness fix, see ADR-0003).
+ */
+export const DECIMAL_AMOUNT_PATTERN =
+  '^(?:(?:0|[1-9][0-9]{0,8})(?:\\.[0-9]{1,2})?|1000000000(?:\\.00?)?)$';
 /** Strict calendar date grammar; calendar validity (e.g. 2026-02-30) is checked separately. */
 export const ISO_DATE_PATTERN = '^[0-9]{4}-[0-9]{2}-[0-9]{2}$';
 /** IDs: printable ASCII subset, case-sensitive, compared by code unit (never localeCompare). */

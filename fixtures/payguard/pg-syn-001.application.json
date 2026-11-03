@@ -1,0 +1,5 @@
+{"schemaVersion":"payguard.application.v1","dataClassification":"SYNTHETIC","applicationId":"PG-A-003",
+ "contractId":"PG-C-001","currency":"USD","periodStart":"2026-10-01","periodEnd":"2026-10-31",
+ "reviewDate":"2026-11-03","claimedCurrentDue":"50000.00",
+ "lines":[{"lineId":"L1","completedToDate":"66000.00","storedToDate":"4000.00"},
+          {"lineId":"L2","completedToDate":"25000.00","storedToDate":"0.00"}]}

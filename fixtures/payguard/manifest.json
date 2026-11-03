@@ -1,0 +1,34 @@
+{
+  "fixtureSchemaVersion": "payguard.fixtures.v1",
+  "dataClassification": "SYNTHETIC",
+  "label": "SYNTHETIC DEMO DATA - fictional parties and illustrative contract conditions; not legal advice or a legal determination.",
+  "reviewDate": "2026-11-03",
+  "fixtures": {
+    "PG-SYN-001": {
+      "bundle": "pg-syn-001.bundle.json",
+      "applicationJson": "pg-syn-001.application.json",
+      "applicationCsv": "pg-syn-001.application.csv",
+      "correctedSignedWaiverDocument": "pg-syn-001.corrected-waiver.document.json",
+      "correctedApplicationJson": "pg-syn-001.corrected.application.json"
+    }
+  },
+  "handCalculatedExpectations": {
+    "note": "Literal integer cents, hand-calculated from docs/specs/PAYGUARD-VERTICAL-SLICE.md. Never produced by engine helpers.",
+    "PG-SYN-001": {
+      "originalContractCents": 15000000,
+      "approvedChangeOrdersCents": 1000000,
+      "pendingChangeOrdersCents": 500000,
+      "revisedContractCents": 16000000,
+      "completedToDateCents": 9100000,
+      "storedToDateCents": 400000,
+      "grossEarnedToDateCents": 9500000,
+      "retainageToDateCents": 950000,
+      "netEarnedToDateCents": 8550000,
+      "postedPriorPaymentsCents": 4050000,
+      "priorCertifiedInformationalCents": 4500000,
+      "calculatedCurrentDueCents": 4500000,
+      "claimedCurrentDueCents": 5000000,
+      "claimDiscrepancyCents": 500000
+    }
+  }
+}

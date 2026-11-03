@@ -28,13 +28,14 @@ test('money ceiling keeps every intermediate product within safe integers', () =
 
 test('decimal grammar accepts strict amounts and rejects ambiguous forms', () => {
   const re = new RegExp(C.DECIMAL_AMOUNT_PATTERN);
-  for (const ok of ['0', '0.05', '45000.00', '66000', '999999999.99', '1.5']) assert.ok(re.test(ok), ok);
+  for (const ok of ['0', '0.05', '45000.00', '66000', '999999999.99', '1.5', '1000000000',
+    '1000000000.0', '1000000000.00']) assert.ok(re.test(ok), ok);
   for (const bad of ['', '-1.00', '+1', '1e3', '1.234', '45,000.00', '45 000', '01.00', 'NaN',
-    'Infinity', '.5', '5.', ' 5', '1000000000.00', '٤٥']) {
+    'Infinity', '.5', '5.', ' 5', '1000000000.01', '1000000000.1', '1000000001', '9999999999', '٤٥']) {
     assert.ok(!re.test(bad), `should reject ${JSON.stringify(bad)}`);
   }
-  // Grammar max (9 integer digits) never exceeds the cents ceiling.
-  assert.ok(99999999999 <= C.MONEY_LIMITS.MAX_INPUT_AMOUNT_CENTS);
+  // Grammar max ($1,000,000,000.00) equals the cents ceiling exactly.
+  assert.equal(C.MONEY_LIMITS.MAX_INPUT_AMOUNT_CENTS, 100000000000);
 });
 
 test('date and id grammars are strict', () => {
