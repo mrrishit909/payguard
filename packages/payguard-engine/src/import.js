@@ -201,8 +201,10 @@ export function checkProvenance(provenance, { application, lines, importBatchId,
       : isBoundedString(p.jsonPointer) && p.jsonPointer.startsWith('/');
     if (!locOk) errors.add('INVALID_TYPE', 'Provenance location is malformed or out of bounds.', at);
     if (!isBoundedString(p.rawValue)) { errors.add('STRING_TOO_LONG', 'Provenance rawValue must be a string of at most 500 characters.', at); return; }
-    const key = `${p.ref.entity}\u0000${p.ref.id}\u0000${p.ref.field}`;
-    const w = typeof p.ref.entity === 'string' && typeof p.ref.id === 'string' && typeof p.ref.field === 'string' ? wanted.get(key) : undefined;
+    // Type-check before interpolation: a non-string ref field may not be coercible to a string.
+    const refOk = typeof p.ref.entity === 'string' && typeof p.ref.id === 'string' && typeof p.ref.field === 'string';
+    const key = refOk ? `${p.ref.entity}\u0000${p.ref.id}\u0000${p.ref.field}` : undefined;
+    const w = refOk ? wanted.get(key) : undefined;
     if (!w) { errors.add('UNKNOWN_REFERENCE', 'Provenance references a field that is not in the application.', at); return; }
     if (seen.has(key)) { errors.add('DUPLICATE_ID', 'Duplicate provenance entry.', at); return; }
     seen.add(key);

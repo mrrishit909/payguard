@@ -199,3 +199,21 @@ test('appendReviewEvent rejects malformed history entries and non-plain events w
     assert.equal(r.ok, false);
   }
 });
+
+test('PG-AUD-05: non-string provenance ref fields fail before key interpolation at both boundaries', async () => {
+  const good = json(importedApp());
+  const report = await validReport();
+  const values = { number: 7, boolean: true, null: null, array: ['L-1'], object: {}, 'toString-null': { toString: null } };
+  for (const field of ['entity', 'id', 'field']) {
+    for (const [kind, value] of Object.entries(values)) {
+      const label = `ref.${field} ${kind}`;
+      const x = json(good);
+      x.provenance[0].ref[field] = value;
+      let r;
+      assert.doesNotThrow(() => { r = E.analyze({ bundle: bundle(), imported: x }); }, label);
+      assert.equal(r.ok, false, `${label} should be rejected`);
+      assert.ok(!('value' in r) && r.errors.some((e) => e.code === 'UNKNOWN_REFERENCE' && e.path === '/imported/provenance/0'), label);
+      assertRejected(report, (rep) => { rep.provenance[0].ref[field] = value; }, `report ${label}`);
+    }
+  }
+});
