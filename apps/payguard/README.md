@@ -20,8 +20,21 @@ Run it: `node scripts/build.js && node scripts/serve.js dist 4173`, then open `h
 - Review entries refer to the run being viewed, and they pass that run's `findingIds` to `appendReviewEvent`. Notes render as text with `pre-wrap`.
 - Exports cover the run being viewed, with earlier runs as `priorAnalyses` and the full review history.
 
+## Browser QA (implementer validation, not the independent review)
+`node scripts/build.js`, then `PLAYWRIGHT_MODULE=<path to an existing playwright package> node --test tests/e2e/browser-qa.mjs`. The script installs nothing and serves `dist/` on 127.0.0.1 itself. It drives headless Chromium through these checks:
+- the landing proof slots and both failure fallbacks;
+- reduced motion and the skip control;
+- the keyboard reviewer journey, including filters, the USD evidence labels and an inert HTML note;
+- correcting the claim to 45000 with the corrected waiver, then rerunning to zero blocking findings;
+- run 1 history, and the contents of the JSON and CSV downloads;
+- invalid, impossible-date and oversize uploads;
+- the skip link, both before and after load;
+- the 390px layout.
+
+Zero console errors are required. No axe, Lighthouse or cross-browser run was done. `tests/e2e/payguard.e2e.spec.mjs` targets `@playwright/test` and was not run.
+
 ## Website rubric (website-playbook, eight criteria)
-This run had no browser. Nothing below was inspected as a rendered result, so no row is Strong.
+Rows marked "Chromium" were checked by the implementer in headless Chromium (`tests/e2e/browser-qa.mjs` plus 390px/320px screenshots of the proof sheet and evidence panel). None of this replaces the independent review, so no row is Strong.
 
 | Criterion | Intended outcome | Implementation decision | Evidence inspected | Status | Remaining correction |
 |---|---|---|---|---|---|
@@ -29,7 +42,7 @@ This run had no browser. Nothing below was inspected as a rendered result, so no
 | Typography | Condensed plan-title headings, readable UI text, tabular numbers only on amounts and IDs | System stacks: Avenir Next Condensed / Arial Narrow; system-ui; ui-monospace for `.num` | Source only. Font fallback differs by OS | UNVERIFIED | Check heading breaks and fallback rendering on macOS, Windows and Android |
 | Colour | Five roles with measured contrast | Palette from the brief. Slate and rust used only at ≥14px on ivory or white. `--rule` used only for decoration | Atlas palette ratios (computed, not rendered) | UNVERIFIED | Rendered contrast of hover, focus, disabled and error states |
 | Hierarchy | Summary, then calculation, then evidence; one primary action | One rust primary per region; difference figure largest | Source only | UNVERIFIED | Squint test on screenshots |
-| Imagery | Original document fragment, no stock or remote media | HTML/CSS document plus two inline SVG marks | Source only | UNVERIFIED | Visual check of the sheet crop at 390px |
-| Motion | One skippable alignment sequence; 160ms feedback; reduced motion shows the final state | Transform-only keyframes (700ms slip, 420ms mark), content visible throughout, live `matchMedia` change handler, global reduced-motion override | Source only | UNVERIFIED | Watch it live; toggle reduced motion mid-sequence |
-| Mobile | Single column; ledger scrolls in a labelled region | 960px and 560px breakpoints, sticky first ledger column, 44px targets | Source only | UNVERIFIED | 390x844 screenshots; overflow check (e2e scenario written) |
-| Invisible quality | Semantic HTML, keyboard, CSP, no console errors, honest states | Native controls, live status region, `role=alert` errors, strict CSP without inline code, 404 page | Node tests: build contents, headers, traversal, no HTML sinks | Mixed | axe, keyboard pass, console, Lighthouse: all UNVERIFIED |
+| Imagery | Original document fragment, no stock or remote media | HTML/CSS document plus two inline SVG marks | Chromium screenshots of the sheet at 390px and 320px: all four columns inside the sheet after removing the figure's default 40px margins | Chromium | Desktop and other-browser crops |
+| Motion | One skippable alignment sequence; 160ms feedback; reduced motion shows the final state | Transform-only keyframes (700ms slip, 420ms mark), content visible throughout, live `matchMedia` change handler, global reduced-motion override | Chromium: skip control shows, hides on click and focuses the title; under reduced motion there is no skip control and no animation class (fixed: `.btn` display overrode `[hidden]`) | Chromium | Watch it live; toggle reduced motion mid-sequence |
+| Mobile | Single column; ledger scrolls in a labelled region | 960px and 560px breakpoints, sticky first ledger column, 44px targets, fluid proof-table type below 560px | Chromium at 390x844: no page overflow on either page, and no proof element past the sheet edge; 320px screenshot fits | Chromium | Real devices; 44px target audit |
+| Invisible quality | Semantic HTML, keyboard, CSP, no console errors, honest states | Native controls, live status region, `role=alert` errors, strict CSP without inline code, 404 page | Node tests: build contents, headers, traversal, no HTML sinks. Chromium: keyboard journey, skip link before and after load (fixed an early popstate crash), zero console errors, fallback text without raw exceptions | Mixed | axe, Lighthouse, screen reader: UNVERIFIED |

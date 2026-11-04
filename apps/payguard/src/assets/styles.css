@@ -200,10 +200,11 @@ textarea { min-height: 7rem; resize: vertical; }
 }
 @media (max-width: 560px) {
   .figures { grid-template-columns: minmax(0, 1fr); }
-  .sheet { box-shadow: 4px 4px 0 var(--tint); padding: .85rem; }
+  /* the proof is a <figure>: drop its default 40px side margins so the sheet uses the full column */
+  .sheet { box-shadow: 4px 4px 0 var(--tint); padding: .85rem; margin-inline: 0; }
   .sheet .wide-col { display: none; }
-  /* all four proof columns stay; tighter type keeps the net column inside the sheet at 320px+ */
-  .sheet table { font-size: .8rem; }
+  /* all four proof columns stay; type scales with the viewport so the net column fits the sheet */
+  .sheet table { font-size: clamp(.66rem, 3.2vw, .8rem); }
   .sheet th, .sheet td { padding: .35rem .2rem; }
   .masthead nav ul { gap: 0 .9rem; }
   .hero { padding-top: var(--gap); }

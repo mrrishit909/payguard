@@ -251,6 +251,17 @@ test('390px mobile: no page overflow; skip link is the first stop and reaches ma
       await page.locator(id('ledger-region')).waitFor();
     } else {
       await until(async () => (await page.locator('#proof').getAttribute('data-state')) === 'ready', 'proof ready');
+      // Page overflow alone misses figures clipped inside the sheet; every proof element must fit it
+      // once the entrance sequence (the slip slides in from the right) has finished.
+      await until(async () => !(await page.locator('#proof').getAttribute('class')).includes('align-run'), 'alignment sequence ends');
+      const spill = await page.evaluate(() => {
+        const sheet = document.querySelector('#proof').getBoundingClientRect();
+        return [...document.querySelectorAll('#proof *')].filter((e) => e.getClientRects().length)
+          .map((e) => [e.tagName, e.textContent.trim().slice(0, 30), Math.round(e.getBoundingClientRect().right - sheet.right)])
+          .filter(([, , over]) => over > 0);
+      });
+      assert.deepEqual(spill, [], 'proof content spills past the sheet');
+      assert.ok((await page.locator('#proof').boundingBox()).width >= 340, 'sheet uses the column width');
     }
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     assert.ok(overflow <= 0, `${path} overflows by ${overflow}px`);
