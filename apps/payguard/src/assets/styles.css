@@ -161,10 +161,11 @@ textarea { min-height: 7rem; resize: vertical; }
 .trace dd { margin: 0; text-align: right; }
 .trace .result { font-weight: 700; border-top: 2px solid var(--ink); padding-top: .3rem; }
 
-.filters { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: .75rem; margin-bottom: .75rem; }
+/* two by two: the findings column is ~470-700px, too narrow for four controls in a row without clipping "Severity, blocking first" */
+.filters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; margin-bottom: .75rem; }
 .filters .field { margin: 0; }
-.finding-list { list-style: none; margin: 0; padding: 0; display: grid; gap: .5rem; }
-.finding { width: 100%; text-align: left; font: inherit; color: var(--ink); background: var(--white); border: 1px solid var(--ink); border-left-width: 6px; padding: .75rem .9rem; cursor: pointer; display: grid; gap: .2rem; transition: background-color var(--feedback) ease-out; min-height: 44px; }
+.finding-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: .5rem; }
+.finding { width: 100%; text-align: left; font: inherit; color: var(--ink); background: var(--white); border: 1px solid var(--ink); border-left-width: 6px; padding: .75rem .9rem; cursor: pointer; display: grid; gap: .2rem; overflow-wrap: anywhere; transition: background-color var(--feedback) ease-out; min-height: 44px; }
 .finding:hover { background: var(--ivory); }
 .finding[aria-current="true"] { background: var(--tint); outline: 2px solid var(--ink); outline-offset: -4px; }
 .finding[data-severity="BLOCKING"] { border-left-color: var(--rust); }
@@ -195,11 +196,9 @@ textarea { min-height: 7rem; resize: vertical; }
 @media (max-width: 960px) {
   .hero, .method, .desk { grid-template-columns: minmax(0, 1fr); }
   .steps { grid-template-columns: minmax(0, 1fr); }
-  .filters { grid-template-columns: 1fr 1fr; }
-  .filters .field:first-child { grid-column: 1 / -1; }
 }
 @media (max-width: 560px) {
-  .figures { grid-template-columns: minmax(0, 1fr); }
+  .figures, .filters { grid-template-columns: minmax(0, 1fr); }
   /* the proof is a <figure>: drop its default 40px side margins so the sheet uses the full column */
   .sheet { box-shadow: 4px 4px 0 var(--tint); padding: .85rem; margin-inline: 0; }
   .sheet .wide-col { display: none; }
