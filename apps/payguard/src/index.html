@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PayGuard: check a payment application before it goes out</title>
+<meta name="description" content="PayGuard reconciles a subcontractor payment application against the contract ledger and the waivers on file, and shows exactly which figure and which document is off. Synthetic demo.">
+<meta property="og:title" content="PayGuard synthetic payment application review">
+<meta property="og:description" content="Reconcile a fictional payment application, inspect the evidence, correct it and export the result.">
+<meta property="og:type" content="website">
+<meta name="theme-color" content="#14252C">
+<link rel="icon" href="./assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="./assets/styles.css">
+<script type="module" src="./assets/landing.js"></script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="masthead">
+  <a class="wordmark" href="./" aria-label="PayGuard home">
+    <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><path d="M1 7V1h6M21 15v6h-6" fill="none" stroke="#A64B30" stroke-width="2"/><circle cx="11" cy="11" r="4" fill="none" stroke="#14252C" stroke-width="2"/></svg>
+    PayGuard
+  </a>
+  <nav aria-label="Site">
+    <ul>
+      <li><a href="#how">How a review runs</a></li>
+      <li><a href="#method">Method and limits</a></li>
+      <li><a href="./app/" data-testid="nav-open-review">Open synthetic review</a></li>
+    </ul>
+  </nav>
+</header>
+<p class="synthetic" data-testid="synthetic-label"><strong>Synthetic demo.</strong> <span data-synthetic-label>SYNTHETIC DEMO DATA - fictional parties and illustrative contract conditions; not legal advice or a legal determination.</span></p>
+
+<main id="main">
+  <section class="hero" aria-labelledby="hero-title">
+    <div class="hero-copy">
+      <h1 id="hero-title">Find the overstated amount before the application goes out.</h1>
+      <p class="lede">PayGuard checks a payment application against the contract ledger and the waivers on file, then shows which figure and which document is off.</p>
+      <div class="hero-actions">
+        <a class="btn btn-primary" href="./app/" data-testid="cta-open-review">Open synthetic review</a>
+      </div>
+      <p class="fine">The project, parties and contract requirement shown here are fictional. Legal deadlines and lien rights are out of scope.</p>
+    </div>
+
+    <figure class="sheet" id="proof" aria-labelledby="proof-title" data-testid="proof-document" data-state="loading">
+      <div class="sheet-head">
+        <h2 id="proof-title" tabindex="-1">Payment application <span data-f="appId">PG-A-003</span></h2>
+        <p>Period <span class="num" data-f="period">2026-10-01 to 2026-10-31</span>, fictional project</p>
+      </div>
+      <table>
+        <caption class="sr-only">Schedule of values, cumulative to period end, USD</caption>
+        <thead><tr><th scope="col">Line</th><th scope="col">Gross earned to date</th><th scope="col">Retainage to date</th><th scope="col">Net earned to date</th></tr></thead>
+        <tbody data-f="lines"><tr><td colspan="4" class="muted">Calculating from the sample files…</td></tr></tbody>
+        <tfoot><tr><td>Total</td><td class="num" data-f="gross">…</td><td class="num" data-f="ret">…</td><td class="num" data-f="net">…</td></tr></tfoot>
+      </table>
+      <div class="reconcile">
+        <div class="line"><span>Net earned to date</span><span class="num" data-f="net2">…</span></div>
+        <div class="line"><span>Less posted prior payments</span><span class="num" data-f="posted">…</span></div>
+        <div class="line total"><span>Calculated current due</span><span class="num" data-f="due">…</span></div>
+      </div>
+      <div class="slip" data-testid="proof-claimed"><span>Claimed current due, as submitted</span><span class="num" data-f="claimed">…</span></div>
+      <div class="diff" aria-live="polite">
+        <svg class="mark" viewBox="0 0 44 44" aria-hidden="true"><circle cx="22" cy="22" r="13" fill="none" stroke="#A64B30" stroke-width="2"/><path d="M22 2v40M2 22h40" stroke="#A64B30" stroke-width="2"/></svg>
+        <p class="amount num" data-f="diff" data-testid="proof-difference">…</p>
+        <p>Claimed minus calculated. Tolerance for this sample is zero.</p>
+      </div>
+      <details data-testid="proof-trace">
+        <summary>Why the due is not reduced by the prior certified amount</summary>
+        <p>Only posted payments (<span class="num" data-f="posted2">…</span>) are subtracted. The prior certified amount of <span class="num" data-f="cert">…</span> is shown for context and never subtracted a second time. A pending change order of <span class="num" data-f="pending">…</span> stays out of the revised contract of <span class="num" data-f="revised">…</span>.</p>
+      </details>
+      <div class="sheet-controls"><button type="button" class="btn btn-quiet" data-testid="proof-skip" hidden>Skip animation</button></div>
+      <figcaption class="sr-only">Figures calculated in your browser from the fictional sample files.</figcaption>
+      <noscript><p>Figures are calculated in the browser. Enable JavaScript to see them.</p></noscript>
+    </figure>
+  </section>
+
+  <section class="band" id="how" aria-labelledby="how-title">
+    <h2 id="how-title">How a review runs</h2>
+    <ol class="steps">
+      <li><h3>Import</h3><p>Load the application as JSON or the documented CSV. Files over 1 MiB, malformed rows or unknown columns are refused whole, so a previous report is never half replaced.</p></li>
+      <li><h3>Reconcile</h3><p>Each line is rebuilt from contract value, approved change orders, completed work, stored materials and per-line retainage, then compared with the claimed amount to the cent.</p></li>
+      <li><h3>Resolve</h3><p>Correct the claim or attach the missing waiver and run the check again. A finding leaves the list only when a new run no longer produces it; your notes and the original run stay on record.</p></li>
+    </ol>
+  </section>
+
+  <section class="band method" id="method" aria-labelledby="method-title">
+    <div>
+      <h2 id="method-title">Method and limits</h2>
+      <p>Every figure on this page comes from the same calculation the review workspace uses, run on fictional sample files in your browser. Nothing is uploaded.</p>
+    </div>
+    <div>
+      <ul data-f="limitations" data-testid="landing-limitations">
+        <li>Synthetic demonstration data only; fictional parties and illustrative contract conditions, not law or legal advice.</li>
+      </ul>
+      <ul>
+        <li>The waiver requirement is a configured sample condition (<span data-f="clause">Demo Exhibit B §3</span>), not a statute or a universal form rule.</li>
+        <li>Cumulative figures run through the period end; the claimed and calculated due are current-period amounts.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="band closing" aria-labelledby="closing-title">
+    <h2 id="closing-title">Walk through the sample application</h2>
+    <a class="btn btn-primary" href="./app/" data-testid="cta-open-review-2">Open synthetic review</a>
+  </section>
+</main>
+<footer class="foot"><p>PayGuard demo. All data is synthetic. No accounts, tracking or remote services.</p></footer>
+</body>
+</html>

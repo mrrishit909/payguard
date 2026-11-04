@@ -10,6 +10,9 @@
   "scripts": {
     "test": "node --test",
     "test:contracts": "node --test packages/contracts/test/",
-    "test:architecture": "node --test tests/architecture/"
+    "test:architecture": "node --test tests/architecture/",
+    "test:app": "node --test \"tests/payguard-app/*.test.js\"",
+    "build": "node scripts/build.js",
+    "serve": "node scripts/serve.js dist 4173"
   }
 }

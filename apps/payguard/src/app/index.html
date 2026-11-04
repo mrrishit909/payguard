@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Synthetic review workspace: PayGuard</title>
+<meta name="description" content="Reconcile, inspect, correct, review and export a fictional payment application.">
+<meta name="theme-color" content="#14252C">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/styles.css">
+<script type="module" src="../assets/app.js"></script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="masthead">
+  <a class="wordmark" href="../" aria-label="PayGuard home">
+    <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><path d="M1 7V1h6M21 15v6h-6" fill="none" stroke="#A64B30" stroke-width="2"/><circle cx="11" cy="11" r="4" fill="none" stroke="#14252C" stroke-width="2"/></svg>
+    PayGuard
+  </a>
+  <nav aria-label="Workspace">
+    <ul>
+      <li><a href="#summary">Summary</a></li>
+      <li><a href="#ledger">Ledger</a></li>
+      <li><a href="#findings">Findings</a></li>
+      <li><a href="#correct">Correct</a></li>
+      <li><a href="#review">Review</a></li>
+      <li><a href="#export">Export</a></li>
+      <li><a href="#method">Method</a></li>
+    </ul>
+  </nav>
+  <button type="button" class="btn" data-testid="reset-demo" id="reset">Reset demo</button>
+</header>
+<p class="synthetic" data-testid="synthetic-label"><strong>Synthetic demo.</strong> <span data-synthetic-label>SYNTHETIC DEMO DATA - fictional parties and illustrative contract conditions; not legal advice or a legal determination.</span></p>
+
+<main id="main" tabindex="-1">
+  <h1 class="sr-only">Synthetic review workspace</h1>
+  <p class="status-line" role="status" aria-live="polite" data-testid="status" id="status">Loading the synthetic project…</p>
+  <div id="error" class="alert" role="alert" data-testid="error-panel" hidden></div>
+
+  <section class="panel panel-inset" id="import" aria-labelledby="import-title">
+    <h2 id="import-title">Application</h2>
+    <div id="import-body"></div>
+  </section>
+
+  <div class="runbar" id="runbar" hidden></div>
+
+  <div class="desk" id="desk" hidden>
+    <div>
+      <section class="panel" id="summary" aria-labelledby="summary-title"><h2 id="summary-title">Summary</h2><div id="summary-body"></div></section>
+      <section class="panel" id="ledger" aria-labelledby="ledger-title"><h2 id="ledger-title">Ledger and calculation</h2><div id="ledger-body"></div></section>
+      <section class="panel" id="findings" aria-labelledby="findings-title"><h2 id="findings-title">Findings</h2><div id="findings-body"></div></section>
+    </div>
+    <div>
+      <section class="panel evidence" id="evidence" aria-labelledby="evidence-title" tabindex="-1"><h2 id="evidence-title">Evidence</h2><div id="evidence-body"></div></section>
+      <section class="panel" id="correct" aria-labelledby="correct-title"><h2 id="correct-title">Correct and rerun</h2><div id="correct-body"></div></section>
+      <section class="panel" id="review" aria-labelledby="review-title"><h2 id="review-title">Review decision</h2><div id="review-body"></div></section>
+      <section class="panel" id="export" aria-labelledby="export-title"><h2 id="export-title">Export</h2><div id="export-body"></div></section>
+    </div>
+    <section class="panel panel-wide" id="method" aria-labelledby="method-title"><h2 id="method-title">Method and limits</h2><div id="method-body"></div></section>
+  </div>
+</main>
+<footer class="foot"><p>State lives only in this browser tab. Reloading or resetting clears it. Nothing is uploaded.</p></footer>
+</body>
+</html>

@@ -1,0 +1,21 @@
+# INACTIVE TEMPLATE. Not under .github/workflows; do not activate before the Actions
+# free-quota / zero-spend gate is verified by Codex. No secrets, no deploy step.
+name: payguard-ci
+on:
+  workflow_dispatch: {}
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4   # pin to a full commit SHA before activation
+      - uses: actions/setup-node@v4 # pin to a full commit SHA before activation
+        with:
+          node-version: 24
+      - run: node --version
+      - run: node --test --test-reporter=spec
+      - run: node scripts/build.js
+      - run: node -e "const m=require('./dist/build-manifest.json');console.log(m.totalBytes,'bytes',m.files.length,'files')"
+      # Browser e2e (tests/e2e/payguard.e2e.spec.mjs) needs an approved Playwright install; add only after review.
