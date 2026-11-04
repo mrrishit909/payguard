@@ -77,6 +77,7 @@ function writeUrl(push) {
   if (url !== `${location.pathname}${location.search}${location.hash}`) history[push ? 'pushState' : 'replaceState'](null, '', url);
 }
 window.addEventListener('popstate', () => {
+  if (!wf) return; // e.g. the skip link's #main fires popstate before the sample project has loaded
   const u = readUrl();
   if (u.run && runOf(u.run)) ui.run = u.run;
   ui.finding = u.finding;

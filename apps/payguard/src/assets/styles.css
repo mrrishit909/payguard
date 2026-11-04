@@ -21,6 +21,8 @@
   --feedback: 160ms;
 }
 *, *::before, *::after { box-sizing: border-box; }
+/* class display rules (.btn is inline-flex) must not override the hidden attribute */
+[hidden] { display: none !important; }
 html { -webkit-text-size-adjust: 100%; }
 body {
   margin: 0; background: var(--ivory); color: var(--ink);
@@ -198,8 +200,11 @@ textarea { min-height: 7rem; resize: vertical; }
 }
 @media (max-width: 560px) {
   .figures { grid-template-columns: minmax(0, 1fr); }
-  .sheet { box-shadow: 4px 4px 0 var(--tint); }
+  .sheet { box-shadow: 4px 4px 0 var(--tint); padding: .85rem; }
   .sheet .wide-col { display: none; }
+  /* all four proof columns stay; tighter type keeps the net column inside the sheet at 320px+ */
+  .sheet table { font-size: .8rem; }
+  .sheet th, .sheet td { padding: .35rem .2rem; }
   .masthead nav ul { gap: 0 .9rem; }
   .hero { padding-top: var(--gap); }
   .kv { grid-template-columns: minmax(0, 1fr); }
