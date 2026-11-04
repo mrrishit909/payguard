@@ -16,8 +16,8 @@ The slice uses **no server persistence**. State (imported application, analyses,
 **Revisit trigger:** real multi-user accounts, shared review across devices, or a server-side audit log requirement. Any of these requires a new ADR, SEC-04 isolation tests, a verified free quota and Codex approval *before* provisioning.
 
 ## Synthetic/demo isolation
-- `dataClassification` must be the literal `"SYNTHETIC"` in bundles, uploads and reports. Nothing else is accepted (there is no "REAL" mode in v1).
+- `dataClassification` must be the literal `"SYNTHETIC"` in bundles and uploads. Nothing else is accepted (there is no "REAL" mode). This is an **input gate only**. A user-chosen file can contain the value whatever its real content, so it is never used as provenance and reports no longer carry it (amended 2026-11-04, report v2).
 - Seed and fixture data use fictional parties and `PG-`-prefixed IDs, and the files say "synthetic" in their top-level fields. No secrets, emails, addresses or real company names (A03 responsibility, Codex check).
-- Every export carries `syntheticLabel`, and the UI must show it persistently (FE requirement).
+- Every export carries `applicationOrigin`, `originLabel` and `originWarning` (ADR-0006). Only the bundled sample control path records `BUNDLED_SYNTHETIC_SAMPLE`; user-chosen files are `UNVERIFIED_LOCAL_FILE`. The UI persistently shows the synthetic label for the bundled samples, plus the origin of the run being viewed and the warning that PayGuard does not detect or prevent real data.
 - The engine makes no network calls, so a public demo cannot leak one visitor's data to another. A reset affects only the local browser.
 - No analytics or third-party scripts in the slice without a separate review.

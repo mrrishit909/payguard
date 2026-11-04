@@ -325,14 +325,16 @@
  */
 
 // ---------------------------------------------------------------------------------------------
-// Report export (payguard.report.v1)
+// Report export (payguard.report.v2; v1 is read-only and upgraded on parse)
 // ---------------------------------------------------------------------------------------------
 
 /**
  * @typedef {object} Report  Immutable snapshot (deep-frozen, structurally cloned from inputs).
- * @property {'payguard.report.v1'} reportSchemaVersion
- * @property {'SYNTHETIC'} dataClassification
- * @property {string} syntheticLabel
+ * @property {'payguard.report.v2'} reportSchemaVersion
+ * @property {'BUNDLED_SYNTHETIC_SAMPLE'|'UNVERIFIED_LOCAL_FILE'|'UNVERIFIED_LEGACY_REPORT'} applicationOrigin
+ *   Recorded by the app control that loaded the application; never derived from dataClassification.
+ * @property {string} originLabel           APPLICATION_ORIGIN_LABEL[applicationOrigin].
+ * @property {string} originWarning         REAL_DATA_WARNING.
  * @property {'USD_CENTS'} moneyUnit
  * @property {string} engineContractVersion
  * @property {string} semanticHash          hex SHA-256 of canonical semantic content.

@@ -4,6 +4,9 @@
 
 export const ACTOR = 'demo-reviewer';
 
+/** Mirrors APPLICATION_ORIGIN in packages/contracts (the workflow receives the engine by injection). */
+export const ORIGIN = Object.freeze({ BUNDLED_SYNTHETIC_SAMPLE: 'BUNDLED_SYNTHETIC_SAMPLE', UNVERIFIED_LOCAL_FILE: 'UNVERIFIED_LOCAL_FILE' });
+
 /** Engine amount string -> display string with thousands separators (formatting only). */
 export function groupDigits(decimalText) {
   const negative = decimalText.startsWith('-');
@@ -22,8 +25,10 @@ export function groupDigits(decimalText) {
  * @param {typeof import('../../../../packages/payguard-engine/src/index.js')} deps.engine
  * @param {{ MAX_UPLOAD_BYTES: number }} deps.limits
  * @param {() => string} deps.now  ISO-8601 UTC clock (app clock; never the engine's).
+ * @param {Readonly<{ json?: string, csv?: string }>} [deps.samples]  Bundled sample application file names.
+ * @param {(name: string) => Promise<Uint8Array>} [deps.loadSample]  Reads a bundled sample by name.
  */
-export function createWorkflow({ engine, limits, now }) {
+export function createWorkflow({ engine, limits, now, samples = {}, loadSample }) {
   /** @type {any} */ let seedBundle = null;
   /** @type {any} */ let correctedWaiver = null;
   let state = fresh();
@@ -31,9 +36,10 @@ export function createWorkflow({ engine, limits, now }) {
   function fresh() {
     return {
       imported: null,          // latest successfully imported/corrected application
+      origin: null,            // ORIGIN of `imported`, recorded by the control path that loaded it
       attachedDocuments: [],   // corrected evidence attached since the seed
       draft: null,             // staged, not yet analyzed: { claimText?, attachWaiver? }
-      runs: [],                // { index, analysis, semanticHash, sourceName, occurredAt, trigger }
+      runs: [],                // { index, analysis, semanticHash, origin, sourceName, occurredAt, trigger }
       history: Object.freeze([]),
       nextSequence: 1,
     };
@@ -65,7 +71,7 @@ export function createWorkflow({ engine, limits, now }) {
   }
 
   /** Analyze bundle+imported; commit only on full success (atomic). */
-  async function runAnalysis(bundle, imported, trigger) {
+  async function runAnalysis(bundle, imported, origin, trigger) {
     const vb = engine.validateProjectBundle(bundle);
     if (!vb.ok) return vb;
     const a = engine.analyze({ bundle: vb.value, imported });
@@ -74,17 +80,32 @@ export function createWorkflow({ engine, limits, now }) {
     const snapshot = { history: state.history, nextSequence: state.nextSequence };
     const ev = appendRunEvent(semanticHash);
     if (!ev.ok) { Object.assign(state, snapshot); return ev; }
-    const run = { index: state.runs.length + 1, analysis: a.value, semanticHash, sourceName: imported.importBatch.sourceName, occurredAt: ev.value.occurredAt, trigger };
+    const run = { index: state.runs.length + 1, analysis: a.value, semanticHash, origin, sourceName: imported.importBatch.sourceName, occurredAt: ev.value.occurredAt, trigger };
     state.runs = [...state.runs, run];
     return { ok: true, value: run };
   }
 
   /**
-   * Import an uploaded application. Size is checked before decoding. On any failure the
-   * previous imported application, runs and history are untouched.
+   * Import a user-chosen local file. Its origin is always UNVERIFIED_LOCAL_FILE: no file name,
+   * field or dataClassification value can promote it to a bundled sample. Size is checked before
+   * decoding. On any failure the previous imported application, runs and history are untouched.
    * @param {{ bytes?: Uint8Array, size: number, name: string, readBytes?: () => Promise<Uint8Array> }} file
    */
-  async function importFile(file) {
+  function importFile(file) { return importAs(file, ORIGIN.UNVERIFIED_LOCAL_FILE); }
+
+  /**
+   * The only path that records BUNDLED_SYNTHETIC_SAMPLE: the bytes come from the injected bundled
+   * sample loader for a file name fixed at construction, never from a caller-supplied file.
+   * @param {'json'|'csv'} format
+   */
+  async function importSample(format) {
+    const name = Object.hasOwn(samples, format) ? samples[format] : undefined;
+    if (typeof name !== 'string' || typeof loadSample !== 'function') return fail('NOT_READY', 'The bundled sample is unavailable.');
+    const bytes = await loadSample(name);
+    return importAs({ bytes, size: bytes.length, name }, ORIGIN.BUNDLED_SYNTHETIC_SAMPLE);
+  }
+
+  async function importAs(file, origin) {
     if (!seedBundle) return fail('NOT_READY', 'The synthetic project has not loaded yet.');
     const name = String(file.name ?? '').slice(0, 200);
     const lower = name.toLowerCase();
@@ -97,9 +118,11 @@ export function createWorkflow({ engine, limits, now }) {
     const meta = { importBatchId, sourceName: name };
     const parsed = format === 'json' ? engine.parseApplicationJson(bytes, meta) : engine.parseApplicationCsv(bytes, meta);
     if (!parsed.ok) return parsed;
-    const run = await runAnalysis(currentBundle(), parsed.value, `Imported ${format.toUpperCase()}`);
+    const trigger = origin === ORIGIN.BUNDLED_SYNTHETIC_SAMPLE ? `Bundled sample ${format.toUpperCase()}` : `Imported ${format.toUpperCase()} (unverified origin)`;
+    const run = await runAnalysis(currentBundle(), parsed.value, origin, trigger);
     if (!run.ok) return run;
     state.imported = parsed.value;
+    state.origin = origin;
     state.draft = null;
     return run;
   }
@@ -144,7 +167,9 @@ export function createWorkflow({ engine, limits, now }) {
     const attached = draft.attachWaiver ? [...state.attachedDocuments, correctedWaiver] : state.attachedDocuments;
     const bundle = { ...seedBundle, documents: [...seedBundle.documents, ...attached] };
     const parts = [draft.claimText !== undefined && `claim set to ${money(draft.claimCents)}`, draft.attachWaiver && `attached ${correctedWaiver.documentId}`].filter(Boolean);
-    const run = await runAnalysis(bundle, imported, parts.length ? `Rerun: ${parts.join('; ')}` : 'Rerun: no input changes');
+    // A claim correction edits one amount of the current application, so it keeps that
+    // application's recorded origin; an unverified import stays unverified after correction.
+    const run = await runAnalysis(bundle, imported, state.origin, parts.length ? `Rerun: ${parts.join('; ')}` : 'Rerun: no input changes');
     if (!run.ok) return run;
     state.imported = imported;
     state.attachedDocuments = attached;
@@ -179,7 +204,7 @@ export function createWorkflow({ engine, limits, now }) {
     const run = state.runs[runIndex - 1];
     if (!run) return fail('UNKNOWN_REFERENCE', 'No analysis run to export.');
     const prior = state.runs.slice(0, runIndex - 1).map((r) => ({ analysis: r.analysis, semanticHash: r.semanticHash }));
-    return { ok: true, value: engine.buildReport({ analysis: run.analysis, semanticHash: run.semanticHash, priorAnalyses: prior, reviewEvents: state.history, generatedAt: now() }) };
+    return { ok: true, value: engine.buildReport({ analysis: run.analysis, semanticHash: run.semanticHash, priorAnalyses: prior, reviewEvents: state.history, generatedAt: now(), applicationOrigin: run.origin }) };
   }
 
   function exportReport(runIndex, format) {
@@ -197,7 +222,7 @@ export function createWorkflow({ engine, limits, now }) {
   }
 
   return {
-    setSeed, reset, importFile, stageClaim, stageWaiver, discardDraft, rerun, addReview, report, exportReport, statuses, money,
+    setSeed, reset, importFile, importSample, stageClaim, stageWaiver, discardDraft, rerun, addReview, report, exportReport, statuses, money,
     get state() { return state; },
     get correctedWaiverId() { return correctedWaiver?.documentId ?? null; },
     get seedBundle() { return seedBundle; },

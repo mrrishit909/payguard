@@ -402,7 +402,8 @@ test('CSV export neutralises formula prefixes and round-trips quotes, commas, ne
   }
   const due = rows.find((r) => r[0] === 'TOTAL' && r[idx('metric')] === 'calculatedCurrentDue');
   assert.equal(due[idx('amount_usd')], '45000.00');
-  assert.ok(rows.every((r) => r[idx('data_classification')] === 'SYNTHETIC' || r === header));
+  assert.equal(idx('data_classification'), -1, 'v2 CSV makes no data classification claim');
+  assert.ok(rows.slice(1).every((r) => r[idx('application_origin')] === 'UNVERIFIED_LOCAL_FILE'), 'default origin is unverified');
   // JSON keeps original text (CSV prefix is one-way).
   const parsed = ok(E.parseReportJson(E.serializeReportJson(report)));
   assert.ok(parsed.reviewEvents.some((e) => e.note === '=HYPERLINK("http://x","y")'));
@@ -418,11 +419,14 @@ test('report JSON round-trips exactly and parse is strict', async () => {
   assert.deepEqual(back, report);
   assert.equal(back.totals.revisedContractCents, 16000000);
   assert.equal(back.ids.applicationId, 'PG-A-003');
-  assert.equal(back.syntheticLabel, 'SYNTHETIC DEMO DATA - fictional parties and illustrative contract conditions; not legal advice or a legal determination.');
+  assert.equal(back.reportSchemaVersion, 'payguard.report.v2');
+  assert.equal(back.applicationOrigin, 'UNVERIFIED_LOCAL_FILE');
+  assert.ok(!('syntheticLabel' in back) && !('dataClassification' in back));
   assert.equal(E.serializeReportJson(back), text, 'canonical serialization is stable');
   const obj = JSON.parse(text);
-  for (const mutate of [(o) => { o.extra = 1; }, (o) => { o.reportSchemaVersion = 'x'; }, (o) => { delete o.syntheticLabel; },
-    (o) => { o.totals.calculatedCurrentDueCents = 4500000.5; }, (o) => { o.dataClassification = 'REAL'; }]) {
+  for (const mutate of [(o) => { o.extra = 1; }, (o) => { o.reportSchemaVersion = 'x'; }, (o) => { delete o.originWarning; },
+    (o) => { o.totals.calculatedCurrentDueCents = 4500000.5; }, (o) => { o.dataClassification = 'SYNTHETIC'; },
+    (o) => { o.applicationOrigin = 'REAL'; }, (o) => { o.originLabel = 'Verified synthetic.'; }]) {
     const c = structuredClone(obj); mutate(c);
     assert.equal(E.parseReportJson(JSON.stringify(c)).ok, false);
   }

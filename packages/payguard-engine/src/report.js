@@ -1,6 +1,6 @@
 // Append-only review history, immutable report snapshots, JSON/CSV export (ADR-0005/0006).
 import {
-  SCHEMA_VERSIONS, DATA_CLASSIFICATION, SYNTHETIC_LABEL, MONEY_UNIT, IMPORT_LIMITS, MONEY_LIMITS, ENGINE_CONTRACT_VERSION,
+  SCHEMA_VERSIONS, DATA_CLASSIFICATION, SYNTHETIC_LABEL, APPLICATION_ORIGIN, APPLICATION_ORIGIN_LABEL, REAL_DATA_WARNING, MONEY_UNIT, IMPORT_LIMITS, MONEY_LIMITS, ENGINE_CONTRACT_VERSION,
   ID_PATTERN, REVIEW_EVENT_TYPE, REVIEW_DISPOSITION, CSV_EXPORT_COLUMNS, CSV_FORMULA_TRIGGER_PREFIXES,
   READINESS, FINDING_CODES, FINDING_SEVERITY, FINDING_CATEGORY, RULE_OUTCOME, CANDIDATE_REJECTION_REASON, CALCULATION_RULES, CURRENCY,
 } from '../../contracts/src/constants.js';
@@ -14,11 +14,24 @@ const EVENT_KEYS = new Set(['eventId', 'sequence', 'type', 'analysisHash', 'find
 const err = (code, message) => ({ ok: false, errors: [{ code, message }] });
 
 export const LIMITATIONS = Object.freeze([
+  'The project, parties and contract conditions are fictional samples; conditions are illustrative, not law or legal advice.',
+  'Application origin is recorded by the app control that loaded it, not detected from the data; PayGuard does not detect or prevent real data.',
+  'Readiness reflects configured rules only; NO_BLOCKING_FINDINGS is not approval, acceptance or compliance.',
+  'No legal deadlines, lien dates or customer outcomes are evaluated.',
+  'Evidence is metadata only; document contents are not parsed or verified.',
+]);
+
+/** payguard.report.v1 limitations, accepted only when reading a legacy report. */
+const LEGACY_V1_LIMITATIONS = Object.freeze([
   'Synthetic demonstration data only; fictional parties and illustrative contract conditions, not law or legal advice.',
   'Readiness reflects configured rules only; NO_BLOCKING_FINDINGS is not approval, acceptance or compliance.',
   'No legal deadlines, lien dates or customer outcomes are evaluated.',
   'Evidence is metadata only; document contents are not parsed or verified.',
 ]);
+
+/** Origins a caller may record when building a report; the legacy value comes only from parsing v1. */
+const BUILDABLE_ORIGINS = [APPLICATION_ORIGIN.BUNDLED_SYNTHETIC_SAMPLE, APPLICATION_ORIGIN.UNVERIFIED_LOCAL_FILE];
+const originFields = (origin) => ({ applicationOrigin: origin, originLabel: APPLICATION_ORIGIN_LABEL[origin], originWarning: REAL_DATA_WARNING });
 
 /**
  * @param {readonly object[]} history
@@ -53,9 +66,15 @@ export function appendEvent(history, event, options = {}) {
   return { ok: true, value: Object.freeze([...history, deepFreeze(clone(event))]) };
 }
 
-export function buildReportSnapshot({ analysis, semanticHash, priorAnalyses = [], reviewEvents = [], generatedAt }) {
+/**
+ * `applicationOrigin` is recorded, not detected: the engine cannot tell where bytes came from, so
+ * it defaults to UNVERIFIED_LOCAL_FILE and only the caller's own sample loader should pass
+ * BUNDLED_SYNTHETIC_SAMPLE. The application's dataClassification input is never consulted.
+ */
+export function buildReportSnapshot({ analysis, semanticHash, priorAnalyses = [], reviewEvents = [], generatedAt, applicationOrigin = APPLICATION_ORIGIN.UNVERIFIED_LOCAL_FILE }) {
   if (!analysis || !HASH_RE.test(semanticHash ?? '')) throw new TypeError('buildReport requires an analysis and its semantic hash');
   if (!isValidUtcTimestamp(generatedAt)) throw new TypeError('generatedAt must be ISO-8601 UTC');
+  if (!BUILDABLE_ORIGINS.includes(applicationOrigin)) throw new TypeError(`applicationOrigin must be one of ${BUILDABLE_ORIGINS.join(', ')}`);
   const runs = [...priorAnalyses, { analysis, semanticHash }];
   const status = new Map();
   for (const run of runs) {
@@ -72,7 +91,7 @@ export function buildReportSnapshot({ analysis, semanticHash, priorAnalyses = []
   const { bundle, imported } = analysis.canonicalInput;
   const app = imported.application;
   return deepFreeze(clone({
-    reportSchemaVersion: SCHEMA_VERSIONS.REPORT, dataClassification: DATA_CLASSIFICATION, syntheticLabel: SYNTHETIC_LABEL,
+    reportSchemaVersion: SCHEMA_VERSIONS.REPORT, ...originFields(applicationOrigin),
     moneyUnit: MONEY_UNIT, engineContractVersion: analysis.engineContractVersion, semanticHash, generatedAt,
     ids: { projectId: bundle.project.projectId, contractId: bundle.contract.contractId, applicationId: app.applicationId,
       importBatchId: imported.importBatch.importBatchId, bundleId: bundle.bundleId },
@@ -86,9 +105,10 @@ export function buildReportSnapshot({ analysis, semanticHash, priorAnalyses = []
 
 export const serializeJson = (report) => `${canonicalJson(report, 2)}\n`;
 
-const REPORT_KEYS = ['reportSchemaVersion', 'dataClassification', 'syntheticLabel', 'moneyUnit', 'engineContractVersion', 'semanticHash',
-  'generatedAt', 'ids', 'period', 'readiness', 'totals', 'lines', 'ruleVersions', 'ruleEvaluations', 'findings', 'findingStatuses',
-  'reviewEvents', 'provenance', 'limitations'];
+const BODY_KEYS = ['moneyUnit', 'engineContractVersion', 'semanticHash', 'generatedAt', 'ids', 'period', 'readiness', 'totals', 'lines',
+  'ruleVersions', 'ruleEvaluations', 'findings', 'findingStatuses', 'reviewEvents', 'provenance', 'limitations'];
+const REPORT_KEYS = ['reportSchemaVersion', 'applicationOrigin', 'originLabel', 'originWarning', ...BODY_KEYS];
+const LEGACY_V1_KEYS = ['reportSchemaVersion', 'dataClassification', 'syntheticLabel', ...BODY_KEYS];
 const TOTAL_KEYS = ['originalContractCents', 'approvedChangeOrdersCents', 'pendingChangeOrdersCents', 'revisedContractCents',
   'completedToDateCents', 'storedToDateCents', 'grossEarnedToDateCents', 'retainageToDateCents', 'netEarnedToDateCents',
   'postedPriorPaymentsCents', 'priorCertifiedInformationalCents', 'calculatedCurrentDueCents', 'claimedCurrentDueCents', 'claimDiscrepancyCents'];
@@ -177,18 +197,31 @@ function arithmeticError(r) {
 }
 
 /**
- * Strict, non-throwing validator for an untrusted payguard.report.v1 text. Success means the
- * report is structurally valid and internally consistent; it is NOT authenticity or source
- * verification: semanticHash is an unkeyed input fingerprint, not a signature, and imported
- * figures are not recomputed from the original bundle/application (ADR-0006).
+ * Strict, non-throwing validator for an untrusted payguard.report.v2 (or legacy v1) text. Success
+ * means the report is structurally valid and internally consistent; it is NOT authenticity or
+ * source verification: semanticHash is an unkeyed input fingerprint, not a signature, imported
+ * figures are not recomputed from the original bundle/application, and applicationOrigin is what
+ * the exporting app recorded, not proof (ADR-0006).
+ *
+ * A v1 text is validated against the v1 schema and returned upgraded to the v2 shape with
+ * applicationOrigin UNVERIFIED_LEGACY_REPORT: v1 labelled every report synthetic, so its
+ * dataClassification/syntheticLabel are dropped rather than treated as evidence of origin.
  */
 export function parseJson(text) {
   if (typeof text !== 'string' || text.length > 16 * IMPORT_LIMITS.MAX_UPLOAD_BYTES) return err('INPUT_TOO_LARGE', 'Report text is missing or too large.');
   let r;
   try { r = JSON.parse(text); } catch { return err('MALFORMED_JSON', 'Report is not well-formed JSON.'); }
-  if (!exactKeys(r, REPORT_KEYS)) return err('UNKNOWN_FIELD', 'Report fields do not match payguard.report.v1.');
-  if (r.reportSchemaVersion !== SCHEMA_VERSIONS.REPORT) return err('UNSUPPORTED_SCHEMA_VERSION', 'Unsupported report schema version.');
-  if (r.dataClassification !== DATA_CLASSIFICATION || r.syntheticLabel !== SYNTHETIC_LABEL) return err('UNSUPPORTED_CLASSIFICATION', 'Report is not labelled synthetic.');
+  if (!isPlainObject(r)) return err('INVALID_TYPE', 'Report must be a JSON object.');
+  const legacy = r.reportSchemaVersion === SCHEMA_VERSIONS.LEGACY_REPORT_V1;
+  if (!legacy && r.reportSchemaVersion !== SCHEMA_VERSIONS.REPORT) return err('UNSUPPORTED_SCHEMA_VERSION', 'Unsupported report schema version.');
+  if (legacy) {
+    if (!exactKeys(r, LEGACY_V1_KEYS)) return err('UNKNOWN_FIELD', 'Report fields do not match payguard.report.v1.');
+    if (r.dataClassification !== DATA_CLASSIFICATION || r.syntheticLabel !== SYNTHETIC_LABEL) return err('UNSUPPORTED_CLASSIFICATION', 'payguard.report.v1 must carry its fixed v1 label fields.');
+  } else {
+    if (!exactKeys(r, REPORT_KEYS)) return err('UNKNOWN_FIELD', 'Report fields do not match payguard.report.v2.');
+    if (!Object.values(APPLICATION_ORIGIN).includes(r.applicationOrigin) || r.originLabel !== APPLICATION_ORIGIN_LABEL[r.applicationOrigin]
+      || r.originWarning !== REAL_DATA_WARNING) return err('INVALID_ENUM', 'Report origin fields do not match payguard.report.v2.');
+  }
   if (r.moneyUnit !== MONEY_UNIT) return err('INVALID_TYPE', 'Unsupported money unit.');
   if (r.engineContractVersion !== ENGINE_CONTRACT_VERSION) return err('UNSUPPORTED_SCHEMA_VERSION', 'Report was produced by an unsupported engine contract version.');
   if (typeof r.semanticHash !== 'string' || !HASH_RE.test(r.semanticHash)) return err('INVALID_TYPE', 'Invalid semantic hash.');
@@ -231,8 +264,9 @@ export function parseJson(text) {
   const provErrors = new ErrorList();
   checkProvenance(r.provenance, { application, lines: r.lines, importBatchId: r.ids.importBatchId }, '/provenance', provErrors);
   if (provErrors.any) return { ok: false, errors: provErrors.items };
-  if (!Array.isArray(r.limitations) || r.limitations.length !== LIMITATIONS.length || !LIMITATIONS.every((x, i) => r.limitations[i] === x)) {
-    return err('INVALID_TYPE', 'Report limitations must be the payguard.report.v1 limitations.');
+  const expectedLimitations = legacy ? LEGACY_V1_LIMITATIONS : LIMITATIONS;
+  if (!Array.isArray(r.limitations) || r.limitations.length !== expectedLimitations.length || !expectedLimitations.every((x, i) => r.limitations[i] === x)) {
+    return err('INVALID_TYPE', `Report limitations must be the ${r.reportSchemaVersion} limitations.`);
   }
 
   let arithmetic;
@@ -241,7 +275,9 @@ export function parseJson(text) {
     arithmetic = 'A report amount exceeds the safe integer range.';
   }
   if (arithmetic) return err('INVALID_AMOUNT', arithmetic);
-  return { ok: true, value: deepFreeze(r) };
+  if (!legacy) return { ok: true, value: deepFreeze(r) };
+  const { reportSchemaVersion, dataClassification, syntheticLabel, limitations, ...body } = r;
+  return { ok: true, value: deepFreeze({ reportSchemaVersion: SCHEMA_VERSIONS.REPORT, ...originFields(APPLICATION_ORIGIN.UNVERIFIED_LEGACY_REPORT), ...body, limitations: [...LIMITATIONS] }) };
 }
 const safeText = (v) => {
   const s = v === undefined || v === null ? '' : String(v);
@@ -251,12 +287,12 @@ const quote = (s) => `"${s.replaceAll('"', '""')}"`;
 
 export function serializeCsv(report) {
   const base = {
-    report_schema_version: SCHEMA_VERSIONS.REPORT_CSV, data_classification: report.dataClassification, semantic_hash: report.semanticHash,
+    report_schema_version: SCHEMA_VERSIONS.REPORT_CSV, application_origin: report.applicationOrigin, semantic_hash: report.semanticHash,
     project_id: report.ids.projectId, contract_id: report.ids.contractId, application_id: report.ids.applicationId,
   };
   const rows = [];
   const push = (record_type, fields) => rows.push({ ...base, record_type, ...fields });
-  const meta = { syntheticLabel: report.syntheticLabel, engineContractVersion: report.engineContractVersion, readiness: report.readiness,
+  const meta = { originLabel: report.originLabel, originWarning: report.originWarning, engineContractVersion: report.engineContractVersion, readiness: report.readiness,
     periodStart: report.period.periodStart, periodEnd: report.period.periodEnd, reviewDate: report.period.reviewDate,
     generatedAt: report.generatedAt, moneyUnit: report.moneyUnit, importBatchId: report.ids.importBatchId, bundleId: report.ids.bundleId };
   for (const k of Object.keys(meta).sort(cmp)) push('META', { metric: k, text: meta[k] });

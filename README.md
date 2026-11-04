@@ -4,6 +4,13 @@ Diagnoses an incomplete or financially overstated construction payment applicati
 
 Current state: architecture foundation. The engine is an unimplemented boundary stub, and there is no UI, CI or deployment. See [`docs/architecture/`](docs/architecture/README.md).
 
+## Data origin and real data
+- **PayGuard does not detect or prevent real data.** Do not import real payment applications or personal, financial or confidential information.
+- Only the built-in **Load sample** buttons are labelled *bundled synthetic sample*. They read the fictional files shipped in `fixtures/payguard/`.
+- A file you choose with **Import JSON or CSV file** is labelled *unverified origin*. This applies whatever its name is and even if it contains `dataClassification: "SYNTHETIC"`. That field is required on import, but it is the file's own claim and proves nothing about where the data came from.
+- Files you choose are read in your browser tab and not uploaded. The app requests only its own same-origin pages, assets and sample files. CSP is `connect-src 'self'`.
+- Report exports are `payguard.report.v2` (JSON) and `payguard.report-csv.v2` (CSV). Both record `applicationOrigin`, its label and the real-data warning. Older `payguard.report.v1` JSON is still readable, but it is read as *unverified origin* (`UNVERIFIED_LEGACY_REPORT`) because v1 labelled every report synthetic. See [ADR-0006](docs/architecture/adr/0006-export-schema.md).
+
 ## Requirements
 Node.js ≥ 24. No dependencies and no install step.
 

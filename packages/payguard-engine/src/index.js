@@ -113,7 +113,9 @@ export function appendReviewEvent(history, event, options) { return appendEvent(
 /**
  * Builds an immutable report snapshot. `generatedAt` is supplied by the caller (no clock).
  * Earlier analyses let the report derive FindingStatus (resolution only via rerun).
- * @param {{ analysis: Analysis, semanticHash: string, priorAnalyses: { analysis: Analysis, semanticHash: string }[], reviewEvents: readonly ReviewEvent[], generatedAt: string }} args
+ * `applicationOrigin` is recorded by the caller's control path (default UNVERIFIED_LOCAL_FILE);
+ * the engine never derives it from the application's dataClassification field.
+ * @param {{ analysis: Analysis, semanticHash: string, priorAnalyses: { analysis: Analysis, semanticHash: string }[], reviewEvents: readonly ReviewEvent[], generatedAt: string, applicationOrigin?: 'BUNDLED_SYNTHETIC_SAMPLE'|'UNVERIFIED_LOCAL_FILE' }} args
  * @returns {Report}
  */
 export function buildReport(args) { return buildReportSnapshot(args); }
@@ -125,6 +127,8 @@ export function serializeReportJson(report) { return serializeJson(report); }
  * Strict inverse of serializeReportJson for UNTRUSTED text. Success means the report is schema-valid
  * and internally consistent; it is an unverified import, not proof of authenticity: semanticHash is an
  * unkeyed input fingerprint, not a signature, and figures are not recomputed from source inputs.
+ * Legacy payguard.report.v1 text is accepted and returned as v2 with applicationOrigin
+ * UNVERIFIED_LEGACY_REPORT; its unconditional synthetic flags are not treated as origin.
  * @param {string} text @returns {Result<Report>}
  */
 export function parseReportJson(text) { return parseJson(text); }

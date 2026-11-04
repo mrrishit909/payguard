@@ -1,6 +1,6 @@
 // Same-origin static sample files shipped with the site. No remote data.
 import * as engine from '../packages/payguard-engine/src/index.js';
-import { IMPORT_LIMITS, SYNTHETIC_LABEL } from '../packages/contracts/src/index.js';
+import { IMPORT_LIMITS, SYNTHETIC_LABEL, APPLICATION_ORIGIN_LABEL, REAL_DATA_WARNING } from '../packages/contracts/src/index.js';
 import { createWorkflow } from './workflow.js';
 
 export const FIXTURE_BASE = new URL('../fixtures/payguard/', import.meta.url);
@@ -11,7 +11,7 @@ export const FIXTURES = Object.freeze({
   waiver: 'pg-syn-001.corrected-waiver.document.json',
   correctedJson: 'pg-syn-001.corrected.application.json',
 });
-export { engine, SYNTHETIC_LABEL, IMPORT_LIMITS };
+export { engine, SYNTHETIC_LABEL, IMPORT_LIMITS, APPLICATION_ORIGIN_LABEL, REAL_DATA_WARNING };
 
 /** A sample-loading failure whose message is written for the reader, safe to show as is. */
 export class SampleError extends Error {}
@@ -36,7 +36,10 @@ export const nowIso = () => new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
 
 /** Workflow with the seeded synthetic project loaded. Throws a plain message on failure. */
 export async function loadWorkflow() {
-  const wf = createWorkflow({ engine, limits: IMPORT_LIMITS, now: nowIso });
+  const wf = createWorkflow({
+    engine, limits: IMPORT_LIMITS, now: nowIso,
+    samples: { json: FIXTURES.applicationJson, csv: FIXTURES.applicationCsv }, loadSample: fetchBytes,
+  });
   const [bundle, waiver] = await Promise.all([fetchBytes(FIXTURES.bundle), fetchBytes(FIXTURES.waiver)]);
   const r = wf.setSeed(decodeJson(bundle, FIXTURES.bundle), decodeJson(waiver, FIXTURES.waiver));
   if (!r.ok) throw new SampleError('The synthetic project failed validation.');

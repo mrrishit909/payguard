@@ -1,6 +1,6 @@
 // Landing proof: the document fragment is filled from a real engine run on the sample files.
 import { h, fill, $, motionPreference } from './dom.js';
-import { loadWorkflow, fetchBytes, failureText, FIXTURES, SampleError, SYNTHETIC_LABEL } from './fixtures.js';
+import { loadWorkflow, failureText, SampleError, SYNTHETIC_LABEL } from './fixtures.js';
 
 const sheet = $('#proof');
 const skip = $('[data-testid="proof-skip"]');
@@ -26,8 +26,7 @@ async function main() {
   for (const el of document.querySelectorAll('[data-synthetic-label]')) el.textContent = SYNTHETIC_LABEL;
   const f = slots();
   const wf = await loadWorkflow();
-  const bytes = await fetchBytes(FIXTURES.applicationJson);
-  const run = await wf.importFile({ bytes, size: bytes.length, name: FIXTURES.applicationJson });
+  const run = await wf.importSample('json');
   if (!run.ok) throw new SampleError('The sample application did not pass validation.');
   const rep = wf.report(1);
   if (!rep.ok) throw new SampleError('The sample report could not be built.');

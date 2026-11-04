@@ -1,6 +1,6 @@
 // Review workspace. Renders engine output as text nodes; never computes money itself.
 import { h, fill, $ } from './dom.js';
-import { loadWorkflow, fetchBytes, failureText, FIXTURES, FIXTURE_BASE, SYNTHETIC_LABEL, IMPORT_LIMITS } from './fixtures.js';
+import { loadWorkflow, failureText, FIXTURES, FIXTURE_BASE, SYNTHETIC_LABEL, IMPORT_LIMITS, APPLICATION_ORIGIN_LABEL, REAL_DATA_WARNING } from './fixtures.js';
 import { fieldText } from './labels.js';
 
 const TITLES = {
@@ -90,8 +90,8 @@ function buildImport() {
   const fileButton = h('button', { type: 'button', class: 'btn', testid: 'import-file-button', onclick: () => fileInput.click() }, 'Import JSON or CSV file');
   const sampleJson = h('button', { type: 'button', class: 'btn btn-primary', testid: 'load-sample-json' }, 'Load sample application');
   const sampleCsv = h('button', { type: 'button', class: 'btn', testid: 'load-sample-csv' }, 'Load sample as CSV');
-  sampleJson.addEventListener('click', () => busy(sampleJson, 'Loading…', () => importSample(FIXTURES.applicationJson)));
-  sampleCsv.addEventListener('click', () => busy(sampleCsv, 'Loading…', () => importSample(FIXTURES.applicationCsv)));
+  sampleJson.addEventListener('click', () => busy(sampleJson, 'Loading…', () => importSample('json')));
+  sampleCsv.addEventListener('click', () => busy(sampleCsv, 'Loading…', () => importSample('csv')));
   fileInput.addEventListener('change', () => {
     const file = fileInput.files?.[0];
     fileInput.value = '';
@@ -102,6 +102,7 @@ function buildImport() {
   fill(el.importBody,
     h('div', { id: 'import-state', testid: 'import-state' }),
     h('div', { class: 'actions' }, sampleJson, sampleCsv, fileButton, h('label', { for: 'file', class: 'sr-only' }, 'Payment application file'), fileInput),
+    h('p', { class: 'hint', testid: 'import-origin-hint' }, 'Only the two sample buttons are labelled bundled synthetic. A file you choose is read in this browser tab, is not uploaded, and is labelled unverified origin whatever its name or fields say. ', REAL_DATA_WARNING),
     h('p', { class: 'hint' }, `Accepted: payguard.application.v1 JSON, or CSV with exactly these columns: ${['schema_version', 'data_classification', 'application_id', 'contract_id', 'currency', 'period_start', 'period_end', 'review_date', 'claimed_current_due', 'line_id', 'completed_to_date', 'stored_to_date'].join(', ')}. Maximum ${IMPORT_LIMITS.MAX_UPLOAD_BYTES} bytes (1 MiB) and ${IMPORT_LIMITS.MAX_ROWS} rows. Amounts are plain decimals such as 45000.00.`),
     h('p', { class: 'hint' }, 'Sample files: ', dl(FIXTURES.applicationJson, 'application JSON', 'download-fixture-json'), ', ',
       dl(FIXTURES.applicationCsv, 'application CSV', 'download-fixture-csv'), ', ',
@@ -114,20 +115,30 @@ function renderImportState() {
   const imp = wf.state.imported;
   if (!imp) {
     fill(box, h('div', { class: 'empty', testid: 'empty-state' },
-      h('p', null, h('strong', null, 'No application loaded.'), ' The fictional project ', wf.seedBundle.project.name, ' is ready. Load the sample payment application or import your own file to start the check.')));
+      h('p', null, h('strong', null, 'No application loaded.'), ' The fictional project ', wf.seedBundle.project.name, ' is ready. Load the bundled sample payment application, or import a local file (labelled unverified origin), to start the check.')));
     return;
   }
   const a = imp.application;
   fill(box, h('dl', { class: 'kv' },
     h('dt', null, 'Application'), h('dd', null, `${a.applicationId}, contract ${a.contractId}`),
     h('dt', null, 'Period'), h('dd', { class: 'num' }, `${a.periodStart} to ${a.periodEnd}, review date ${a.reviewDate}`),
-    h('dt', null, 'Source'), h('dd', { testid: 'source-name' }, `${imp.importBatch.sourceName} (${imp.importBatch.sourceFormat.toUpperCase()}, ${imp.importBatch.byteLength} bytes, batch ${imp.importBatch.importBatchId})`)));
+    h('dt', null, 'Source'), h('dd', { testid: 'source-name' }, `${imp.importBatch.sourceName} (${imp.importBatch.sourceFormat.toUpperCase()}, ${imp.importBatch.byteLength} bytes, batch ${imp.importBatch.importBatchId})`),
+    h('dt', null, 'Origin'), h('dd', { testid: 'source-origin', 'data-origin': wf.state.origin }, ORIGIN_TEXT[wf.state.origin])));
 }
 
-async function importSample(name) {
-  let bytes;
-  try { bytes = await fetchBytes(name); } catch (e) { showErrors('The sample file could not be loaded', [{ code: 'MISSING_FILE', message: failureText(e) }], keepText()); announce('Sample file missing.'); return; }
-  await afterImport(await wf.importFile({ bytes, size: bytes.length, name }));
+const ORIGIN_TEXT = { BUNDLED_SYNTHETIC_SAMPLE: 'Bundled synthetic sample', UNVERIFIED_LOCAL_FILE: 'Unverified origin (local file)' };
+
+/** Origin notice for the run being shown; text comes from the contracts, as in the exports. */
+function originNotice(run) {
+  return h('div', { class: `origin${run.origin === 'UNVERIFIED_LOCAL_FILE' ? ' origin-unverified' : ''}`, role: 'note', 'aria-label': 'Application origin', 'data-origin': run.origin, testid: 'origin-notice' },
+    h('p', null, h('strong', null, `${ORIGIN_TEXT[run.origin]}. `), APPLICATION_ORIGIN_LABEL[run.origin]),
+    h('p', { testid: 'origin-warning' }, REAL_DATA_WARNING));
+}
+
+async function importSample(format) {
+  let r;
+  try { r = await wf.importSample(format); } catch (e) { showErrors('The sample file could not be loaded', [{ code: 'MISSING_FILE', message: failureText(e) }], keepText()); announce('Sample file missing.'); return; }
+  await afterImport(r);
 }
 async function importUpload(file) {
   await afterImport(await wf.importFile({ size: file.size, name: file.name, readBytes: async () => new Uint8Array(await file.arrayBuffer()) }));
@@ -157,6 +168,7 @@ function renderRunbar() {
   fill(el.runbar,
     h('div', { class: 'field' }, h('label', { for: 'run-select' }, 'Analysis run'), select),
     h('p', { class: 'readiness', 'data-state': a.readiness, testid: 'readiness' }, READINESS_TEXT[a.readiness]),
+    originNotice(runOf(ui.run)),
     ui.run !== latest() ? h('p', { testid: 'older-run-note' }, `You are viewing an earlier run. Run ${latest()} is the latest.`) : null);
 }
 
@@ -456,6 +468,7 @@ function renderExport() {
   };
   fill(el.export,
     h('p', null, `Exports run ${ui.run} with every earlier run's finding status and the full review history. Amounts are in USD; the JSON keeps integer cents.`),
+    h('p', { testid: 'export-origin' }, `Both files record this run's origin as ${ORIGIN_TEXT[runOf(ui.run).origin].toLowerCase()} (${runOf(ui.run).origin}) with the warning that PayGuard does not detect or prevent real data.`),
     h('div', { class: 'actions' },
       h('button', { type: 'button', class: 'btn', testid: 'export-json', onclick: () => go('json') }, `Download report JSON (run ${ui.run})`),
       h('button', { type: 'button', class: 'btn', testid: 'export-csv', onclick: () => go('csv') }, `Download report CSV (run ${ui.run})`)),

@@ -71,7 +71,7 @@ function cell(kind, name, raw, loc, errors) {
       if (raw !== SCHEMA_VERSIONS.APPLICATION_IMPORT) { errors.add('UNSUPPORTED_SCHEMA_VERSION', `Unsupported schema version (${where}).`, loc); return undefined; }
       return raw;
     case 'classification':
-      if (raw !== DATA_CLASSIFICATION) { errors.add('UNSUPPORTED_CLASSIFICATION', `Only SYNTHETIC data is accepted (${where}).`, loc); return undefined; }
+      if (raw !== DATA_CLASSIFICATION) { errors.add('UNSUPPORTED_CLASSIFICATION', `The file must declare SYNTHETIC; this declaration is an input check only and does not verify the data (${where}).`, loc); return undefined; }
       return raw;
     case 'currency':
       if (raw !== CURRENCY) { errors.add('UNSUPPORTED_CURRENCY', `Only USD is supported (${where}).`, loc); return undefined; }

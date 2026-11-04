@@ -15,17 +15,45 @@ export const SCHEMA_VERSIONS = deepFreeze({
   APPLICATION_IMPORT: 'payguard.application.v1',
   ANALYSIS_RESULT: 'payguard.analysis.v1',
   REVIEW_EVENT: 'payguard.review-event.v1',
-  REPORT: 'payguard.report.v1',
-  REPORT_CSV: 'payguard.report-csv.v1',
+  REPORT: 'payguard.report.v2',
+  REPORT_CSV: 'payguard.report-csv.v2',
+  /** Read-only: accepted by parseReportJson and upgraded to v2 with an unverified origin. */
+  LEGACY_REPORT_V1: 'payguard.report.v1',
 });
 
 /** Bumped by the engine owner whenever any calculation or finding output can change. */
 export const ENGINE_CONTRACT_VERSION = '1.0.0';
 
-/** v1 accepts only synthetic data. There is deliberately no other classification value. */
+/**
+ * Input gate only: application imports must declare this value. It is a claim made by the file,
+ * not proof of origin, and is never used to label a report (see APPLICATION_ORIGIN).
+ */
 export const DATA_CLASSIFICATION = 'SYNTHETIC';
+/** Describes the bundled sample project and sample files shipped with the site. */
 export const SYNTHETIC_LABEL =
   'SYNTHETIC DEMO DATA - fictional parties and illustrative contract conditions; not legal advice or a legal determination.';
+
+/**
+ * Where the analyzed application came from, as recorded by the app's own control path. Only the
+ * built-in sample loader may record BUNDLED_SYNTHETIC_SAMPLE; every user-chosen file is
+ * UNVERIFIED_LOCAL_FILE whatever its name or fields say. UNVERIFIED_LEGACY_REPORT is produced only
+ * when parseReportJson upgrades a payguard.report.v1 text, whose synthetic flags were unconditional.
+ */
+export const APPLICATION_ORIGIN = deepFreeze({
+  BUNDLED_SYNTHETIC_SAMPLE: 'BUNDLED_SYNTHETIC_SAMPLE',
+  UNVERIFIED_LOCAL_FILE: 'UNVERIFIED_LOCAL_FILE',
+  UNVERIFIED_LEGACY_REPORT: 'UNVERIFIED_LEGACY_REPORT',
+});
+
+export const APPLICATION_ORIGIN_LABEL = deepFreeze({
+  BUNDLED_SYNTHETIC_SAMPLE: 'Bundled synthetic sample: the application was loaded by the built-in sample control from the fictional sample files shipped with this site.',
+  UNVERIFIED_LOCAL_FILE: 'Unverified origin: the application was imported from a local file. Its name, fields and dataClassification value are claims made by the file and were not verified.',
+  UNVERIFIED_LEGACY_REPORT: 'Unverified origin: read from a payguard.report.v1 export, whose synthetic label was applied to every report and does not show where the application came from.',
+});
+
+/** Present on every report and in the UI whatever the origin. */
+export const REAL_DATA_WARNING =
+  'PayGuard does not detect or prevent real data. Do not import real payment applications or personal, financial or confidential information.';
 
 export const CURRENCY = 'USD';
 export const MONEY_UNIT = 'USD_CENTS';
@@ -204,7 +232,7 @@ export const CSV_IMPORT_COLUMNS = deepFreeze([
 export const CSV_EXPORT_COLUMNS = deepFreeze([
   'record_type',
   'report_schema_version',
-  'data_classification',
+  'application_origin',
   'semantic_hash',
   'project_id',
   'contract_id',
