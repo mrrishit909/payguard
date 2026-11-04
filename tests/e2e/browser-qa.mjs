@@ -55,8 +55,10 @@ async function until(fn, what, timeout = 5000) {
 }
 const textOf = async (page, t) => (await page.locator(id(t)).first().innerText()).trim();
 const expectText = (page, t, want) => until(async () => { const s = await textOf(page, t); return (want instanceof RegExp ? want.test(s) : s === want) || s; }, `${t} should be ${want}`);
-const download = async (page, t) => {
-  const [d] = await Promise.all([page.waitForEvent('download'), page.locator(id(t)).click()]);
+/** Keyboard activation: focus the control, then Enter (buttons click, inputs submit their form). */
+const press = async (page, t) => { await page.locator(id(t)).focus(); await page.keyboard.press('Enter'); };
+const download = async (page, t, act = (p) => p.locator(id(t)).click()) => {
+  const [d] = await Promise.all([page.waitForEvent('download'), act(page)]);
   return { name: d.suggestedFilename(), text: readFileSync(await d.path(), 'utf8') };
 };
 
@@ -142,9 +144,9 @@ test('landing fallbacks explain the failure in plain words and never show raw ex
 
 test('reviewer journey by keyboard: filters, evidence labels, review note, correction, rerun, history, exports', async () => {
   const { page, done } = await open('/app/');
+  // Buttons and form submits below are driven by focus + Enter; native selects use selectOption.
   await page.locator(id('empty-state')).waitFor();
-  await page.locator(id('load-sample-csv')).focus();
-  await page.keyboard.press('Enter');
+  await press(page, 'load-sample-csv');
   await expectText(page, 'difference', '+5,000.00');
   await expectText(page, 'calculated-due', '45,000.00');
   await expectText(page, 'claimed-due', '50,000.00');
@@ -154,25 +156,27 @@ test('reviewer journey by keyboard: filters, evidence labels, review note, corre
   // Filters.
   await page.locator(id('findings-search')).fill('waiver');
   await expectText(page, 'findings-count', /Showing 1 of 3/);
-  await page.locator(id('findings-clear')).click();
+  await press(page, 'findings-clear');
   await expectText(page, 'findings-count', /3 of 3|Showing 3/);
+  assert.equal(await page.evaluate(() => document.activeElement?.dataset.testid), 'findings-search', 'clear returns focus to search');
   await page.locator(id('findings-severity')).selectOption('BLOCKING');
   await until(async () => (await page.locator(`${id('findings-list')} button.finding`).count()) === 2, 'two blocking findings');
-  await page.locator(id('findings-clear')).click();
+  await press(page, 'findings-clear');
   await page.locator(id('findings-sort')).selectOption('code');
 
-  // Evidence: readable USD labels beside formatted dollars.
-  await page.locator(id('finding-CLAIMED_DUE_MISMATCH')).focus();
-  await page.keyboard.press('Enter');
+  // Evidence: readable USD labels beside formatted dollars; selecting moves focus to the evidence panel.
+  await press(page, 'finding-CLAIMED_DUE_MISMATCH');
   await page.waitForURL(/finding=/);
+  await until(async () => (await page.evaluate(() => document.activeElement?.id)) === 'evidence', 'focus on #evidence');
   const kv = async (t) => page.$$eval(`${id(t)} > dt`, (dts) => dts.map((dt) => [dt.textContent, dt.nextElementSibling.textContent]));
   const observed = await kv('evidence-observed');
   const expected = await kv('evidence-expected');
   assert.deepEqual(observed, [['Claimed current due (current period), USD', '50,000.00'], ['Difference, claimed minus calculated, USD', '+5,000.00']]);
   assert.deepEqual(expected, [['Calculated current due (current period), USD', '45,000.00'], ['Tolerance, USD', '0.00']]);
-  await page.locator(id('finding-PENDING_CHANGE_ORDER_CONTEXT')).click();
+  await press(page, 'finding-PENDING_CHANGE_ORDER_CONTEXT');
+  await expectText(page, 'evidence-title', /Pending change order/);
   for (const [k] of [...await kv('evidence-observed'), ...await kv('evidence-expected')]) assert.doesNotMatch(k, /Cents/);
-  await page.locator(id('finding-MISSING_REQUIRED_SIGNED_WAIVER')).click();
+  await press(page, 'finding-MISSING_REQUIRED_SIGNED_WAIVER');
   await expectText(page, 'rejected-candidates', /DOC-WV-OCT-UNSIGNED[\s\S]*DOC-WV-SEP-SIGNED/);
   await expectText(page, 'evidence-clause', /Demo Exhibit B §3 \(illustrative contract condition, not law\)/);
 
@@ -180,7 +184,7 @@ test('reviewer journey by keyboard: filters, evidence labels, review note, corre
   const note = '<img src=x onerror="window.__pwned=1"><script>window.__pwned=2</script>';
   await page.locator(id('review-disposition')).selectOption('ACKNOWLEDGED');
   await page.locator(id('review-note')).fill(note);
-  await page.locator(id('review-submit')).click();
+  await press(page, 'review-submit');
   await expectText(page, 'review-history', /Acknowledged/);
   assert.ok((await textOf(page, 'review-history')).includes(note));
   assert.equal(await page.locator(`${id('review-history')} img, ${id('review-history')} script`).count(), 0);
@@ -188,17 +192,17 @@ test('reviewer journey by keyboard: filters, evidence labels, review note, corre
 
   // Correct the claim, attach the corrected waiver, rerun.
   await page.locator(id('claim-input')).fill('45000');
-  await page.locator(id('stage-claim')).click();
-  await page.locator(id('attach-waiver')).click();
+  await page.keyboard.press('Enter'); // submits the claim form from the input
+  await press(page, 'attach-waiver');
   await expectText(page, 'staged', /45000|45,000/);
-  await page.locator(id('rerun')).click();
+  await press(page, 'rerun');
   await expectText(page, 'difference', '0.00');
   await expectText(page, 'readiness', /No blocking findings/);
   await expectText(page, 'findings-gone', /Required signed waiver/);
   await page.locator(id('findings-severity')).selectOption('BLOCKING');
   await page.locator(id('findings-empty')).waitFor();
-  await page.locator(id('findings-clear')).click();
-  const run2 = JSON.parse((await download(page, 'export-json')).text);
+  await press(page, 'findings-clear');
+  const run2 = JSON.parse((await download(page, 'export-json', (p) => press(p, 'export-json'))).text);
   assert.equal(run2.totals.claimDiscrepancyCents, 0);
   assert.equal(run2.readiness, 'NO_BLOCKING_FINDINGS');
 
@@ -206,14 +210,14 @@ test('reviewer journey by keyboard: filters, evidence labels, review note, corre
   await page.locator(id('run-select')).selectOption('1');
   await expectText(page, 'difference', '+5,000.00');
   await page.locator(id('older-run-note')).waitFor();
-  const json = await download(page, 'export-json');
+  const json = await download(page, 'export-json', (p) => press(p, 'export-json'));
   assert.equal(json.name, 'payguard-PG-A-003-run-1.json');
   const rep = JSON.parse(json.text);
   assert.equal(rep.totals.calculatedCurrentDueCents, 4500000);
   assert.equal(rep.totals.claimDiscrepancyCents, 500000);
   assert.deepEqual(rep.findings.find((f) => f.code === 'CLAIMED_DUE_MISMATCH').observed, { claimedCurrentDueCents: 5000000, claimDiscrepancyCents: 500000 });
   assert.ok(rep.reviewEvents.some((e) => e.note === note && e.disposition === 'ACKNOWLEDGED'));
-  const csv = await download(page, 'export-csv');
+  const csv = await download(page, 'export-csv', (p) => press(p, 'export-csv'));
   assert.equal(csv.name, 'payguard-PG-A-003-run-1.csv');
   assert.match(csv.text, /"TOTAL",[^\n]*"claimDiscrepancy",[^\n]*"5000\.00"/);
   await page.goBack();

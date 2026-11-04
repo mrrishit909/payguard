@@ -24,7 +24,7 @@ Run it: `node scripts/build.js && node scripts/serve.js dist 4173`, then open `h
 `node scripts/build.js`, then `PLAYWRIGHT_MODULE=<path to an existing playwright package> node --test tests/e2e/browser-qa.mjs`. The script installs nothing and serves `dist/` on 127.0.0.1 itself. It drives headless Chromium through these checks:
 - the landing proof slots and both failure fallbacks;
 - reduced motion and the skip control;
-- the keyboard reviewer journey, including filters, the USD evidence labels and an inert HTML note;
+- the keyboard reviewer journey (buttons and form submits use focus plus Enter; native selects are set programmatically), including filters, focus moving to the evidence panel, the USD evidence labels and an inert HTML note;
 - correcting the claim to 45000 with the corrected waiver, then rerunning to zero blocking findings;
 - run 1 history, and the contents of the JSON and CSV downloads;
 - invalid, impossible-date and oversize uploads;
