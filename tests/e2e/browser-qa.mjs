@@ -94,6 +94,19 @@ test('landing reduced motion: final figures, no skip control', async () => {
   await done();
 });
 
+test('switching to reduced motion mid-sequence ends it at once; unknown paths get the 404 page', async () => {
+  const { page, done } = await open('/', { allow: ['status of 404'] });
+  await until(async () => (await page.locator('#proof').getAttribute('data-state')) === 'ready', 'proof ready');
+  assert.equal(await page.locator(id('proof-skip')).isVisible(), true, 'sequence running');
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await until(async () => !(await page.locator(id('proof-skip')).isVisible()), 'skip hides on preference change');
+  assert.equal(await page.locator('#proof').getAttribute('class'), 'sheet');
+  const res = await page.goto(`${BASE}/no-such-page`);
+  assert.equal(res.status(), 404);
+  assert.equal(await page.title(), 'Page not found: PayGuard');
+  await done();
+});
+
 test('landing fallbacks explain the failure in plain words and never show raw exceptions', async () => {
   const raw = /TypeError|Cannot set|null|undefined|Landing slots missing/;
   // 1. A sample file is unavailable.
