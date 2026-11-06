@@ -1,0 +1,141 @@
+{
+  "note": "PayGuard synthetic demo static output. Sizes are uncompressed bytes on disk.",
+  "files": [
+    {
+      "path": "404.html",
+      "bytes": 791,
+      "sha256": "eb747a2ca14ff45a19cdfa747a4d6c792029002d237ee507c50b949a5c36dad8"
+    },
+    {
+      "path": "_headers",
+      "bytes": 577,
+      "sha256": "d6f5f8866be325838e2ae973435a2f55d1663aa84c71ee43a68411695306be47"
+    },
+    {
+      "path": "app/index.html",
+      "bytes": 3968,
+      "sha256": "ca1e49996089a175546e76fe00140e101f217205fe347ae4e7e56635c6f5fdb9"
+    },
+    {
+      "path": "assets/app.js",
+      "bytes": 35025,
+      "sha256": "d634adefb8d8c3a40c07b669610e85fdf6b5688210710f4a5335f63a964ba53f"
+    },
+    {
+      "path": "assets/dom.js",
+      "bytes": 1564,
+      "sha256": "718b4aac9a3a4c2d6e1eef18045329ad7209096cf24ec085b087c64ee631077a"
+    },
+    {
+      "path": "assets/favicon.svg",
+      "bytes": 267,
+      "sha256": "f47853efc411995469df319963c7904774b5bf98c7408738000f6539983726c4"
+    },
+    {
+      "path": "assets/fixtures.js",
+      "bytes": 2527,
+      "sha256": "0dc8736a4689cae908131d25614a46c067f4489068e4951c77192f4582456842"
+    },
+    {
+      "path": "assets/labels.js",
+      "bytes": 1637,
+      "sha256": "0108b7073c7144312c6179dad9fde627bfe3fdd8d47796e23d6b72a8aedc280e"
+    },
+    {
+      "path": "assets/landing.js",
+      "bytes": 4019,
+      "sha256": "a0c73c369c9b7a72196157e150a6713244713c486418894b8462129959ef5bfb"
+    },
+    {
+      "path": "assets/styles.css",
+      "bytes": 21916,
+      "sha256": "7481b92bd48473fc368b4d425edc94facbccc44c0d7dcc79fe91289f059258d6"
+    },
+    {
+      "path": "assets/workflow.js",
+      "bytes": 12492,
+      "sha256": "b0ea859931d802483ef83df36422d6ea21049e240ea04aff4d7db60b748e988f"
+    },
+    {
+      "path": "fixtures/payguard/pg-syn-001.application.csv",
+      "bytes": 401,
+      "sha256": "3e4fbbebb081b9c34f8c53616e5ff00c29cf232164cdd213d4c4d47639d5af66"
+    },
+    {
+      "path": "fixtures/payguard/pg-syn-001.application.json",
+      "bytes": 418,
+      "sha256": "df29e36150413c2ff5be1e4b20566766764f82d187bd307f4a988147e86ec929"
+    },
+    {
+      "path": "fixtures/payguard/pg-syn-001.bundle.json",
+      "bytes": 2173,
+      "sha256": "e4c6a85e37b10bb5ccd251dbfcb60bf6584ca2e16945684b581ebd9e4e679837"
+    },
+    {
+      "path": "fixtures/payguard/pg-syn-001.corrected-waiver.document.json",
+      "bytes": 255,
+      "sha256": "3c2af5c7b3052d4cb0e5ea57e719973e5a97e28a1c4bb035e7205c9feb3063e4"
+    },
+    {
+      "path": "fixtures/payguard/pg-syn-001.corrected.application.json",
+      "bytes": 418,
+      "sha256": "cf04dfde492d9752615c525f03a8ca261da0674dd90069049f970655f61e129a"
+    },
+    {
+      "path": "index.html",
+      "bytes": 9770,
+      "sha256": "17d5e507496f262aebf40ba586166dbfac3ffe0f75c0141c308e48a672563860"
+    },
+    {
+      "path": "packages/contracts/src/constants.js",
+      "bytes": 9816,
+      "sha256": "89da750e0655cf5d4e4545c11b01fc0458da6adc699b49c9ff133c5573af442d"
+    },
+    {
+      "path": "packages/contracts/src/index.js",
+      "bytes": 272,
+      "sha256": "a653e7781ec7e656cfa372c06e4d36f249911b8a790478acc004f81f64bf56b1"
+    },
+    {
+      "path": "packages/contracts/src/types.js",
+      "bytes": 15425,
+      "sha256": "443686fcef0a282e7cde567c89ef009d2d86c1b23f9cc36f677641cc6bbf5a0e"
+    },
+    {
+      "path": "packages/payguard-engine/src/analyze.js",
+      "bytes": 15494,
+      "sha256": "fe8f018155df27b4abe61a6926fa9df66a2d05bbeca22b43abcf27b0f86bc7a6"
+    },
+    {
+      "path": "packages/payguard-engine/src/canonical.js",
+      "bytes": 3520,
+      "sha256": "ae487fc7fc93069225f9d1f1f25cbe9906a824da45a9509e06e8b309e729b245"
+    },
+    {
+      "path": "packages/payguard-engine/src/import.js",
+      "bytes": 20924,
+      "sha256": "587908570377444184bf05d342b03454779026a5b6d268040b1baeba53b85751"
+    },
+    {
+      "path": "packages/payguard-engine/src/index.js",
+      "bytes": 6641,
+      "sha256": "86f8b898b55aa9a5d76209fe180793c5f899bc50f8c7268e8d9014836cfbee02"
+    },
+    {
+      "path": "packages/payguard-engine/src/money.js",
+      "bytes": 2380,
+      "sha256": "82cdb9825e158e2d182661015148a163954cc66f700b1a1ce1ca27e103980646"
+    },
+    {
+      "path": "packages/payguard-engine/src/report.js",
+      "bytes": 26988,
+      "sha256": "01c46343d97253b7e5bd19d118d6ddda7c38cf5a4cb54e5f9b96818f4e1a3867"
+    },
+    {
+      "path": "packages/payguard-engine/src/validate.js",
+      "bytes": 7894,
+      "sha256": "f89829e95af5eb574b04cba518981a5a57ac540438153f283604a8eb137c8fb5"
+    }
+  ],
+  "totalBytes": 207572
+}
