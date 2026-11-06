@@ -22,9 +22,10 @@
   </a>
   <nav aria-label="Site">
     <ul>
+      <li><a href="#documents">Three documents</a></li>
       <li><a href="#how">How a review runs</a></li>
       <li><a href="#method">Method and limits</a></li>
-      <li><a href="./app/" data-testid="nav-open-review">Open synthetic review</a></li>
+      <li><a class="nav-cta" href="./app/" data-testid="nav-open-review">Open synthetic review</a></li>
     </ul>
   </nav>
 </header>
@@ -33,14 +34,18 @@
 <main id="main">
   <section class="hero" aria-labelledby="hero-title">
     <div class="hero-copy">
+      <p class="eyebrow"><span class="reg" aria-hidden="true"></span>Payment application review</p>
       <h1 id="hero-title">Find the overstated amount before the application goes out.</h1>
       <p class="lede">PayGuard checks a payment application against the contract ledger and the waivers on file, then shows which figure and which document is off.</p>
       <div class="hero-actions">
         <a class="btn btn-primary" href="./app/" data-testid="cta-open-review">Open synthetic review</a>
+        <a class="jump" href="#documents">See what is compared</a>
       </div>
       <p class="fine">The project, parties and contract requirement shown here are fictional. Legal deadlines and lien rights are out of scope.</p>
     </div>
 
+    <div class="proof-col">
+    <p class="exhibit" aria-hidden="true">Exhibit 1 &middot; calculated live from the sample files</p>
     <figure class="sheet" id="proof" aria-labelledby="proof-title" data-testid="proof-document" data-state="loading">
       <div class="sheet-head">
         <h2 id="proof-title" tabindex="-1">Payment application <span data-f="appId">PG-A-003</span></h2>
@@ -71,10 +76,35 @@
       <figcaption class="sr-only">Figures calculated in your browser from the fictional sample files.</figcaption>
       <noscript><p>Figures are calculated in the browser. Enable JavaScript to see them.</p></noscript>
     </figure>
+    </div>
+  </section>
+
+  <section class="band band-ink" id="documents" aria-labelledby="documents-title">
+    <div class="band-head">
+      <p class="eyebrow"><span class="reg" aria-hidden="true"></span>What gets compared</p>
+      <h2 id="documents-title">Three documents, one check.</h2>
+      <p>A payment application is only as good as the records behind it. PayGuard lines the claim up against the ledger and the waivers on file, and names the one that does not agree.</p>
+    </div>
+    <div class="trace">
+      <ol class="trace-docs">
+        <li class="doc"><span class="doc-tag">A</span><h3>Contract ledger</h3><p>Schedule of values, approved change orders and retainage terms.</p></li>
+        <li class="doc doc-claim"><span class="doc-tag">B</span><h3>Payment application</h3><p>The claimed current due, line by line, as submitted.</p></li>
+        <li class="doc"><span class="doc-tag">C</span><h3>Waivers on file</h3><p>Waiver records, checked against the sample requirement in the method notes.</p></li>
+      </ol>
+      <svg class="trace-lines" viewBox="0 0 100 40" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+        <path d="M16.6 0 V20 H50 V40" pathLength="1"/>
+        <path d="M50 0 V40" pathLength="1"/>
+        <path d="M83.4 0 V20 H50 V40" pathLength="1"/>
+      </svg>
+      <p class="trace-result"><svg viewBox="0 0 44 44" aria-hidden="true" focusable="false"><circle cx="22" cy="22" r="13" fill="none" stroke="currentColor" stroke-width="2"/><path d="M22 2v40M2 22h40" stroke="currentColor" stroke-width="2"/></svg><span>Rebuilt from the ledger and compared to the cent. A mismatch is named by figure and by document, never as a score.</span></p>
+    </div>
   </section>
 
   <section class="band" id="how" aria-labelledby="how-title">
-    <h2 id="how-title">How a review runs</h2>
+    <div class="band-head">
+      <p class="eyebrow"><span class="reg" aria-hidden="true"></span>Method</p>
+      <h2 id="how-title">How a review runs</h2>
+    </div>
     <ol class="steps">
       <li><h3>Import</h3><p>Load the application as JSON or the documented CSV. Files over 1 MiB, malformed rows or unknown columns are refused whole, so a previous report is never half replaced.</p></li>
       <li><h3>Reconcile</h3><p>Each line is rebuilt from contract value, approved change orders, completed work, stored materials and per-line retainage, then compared with the claimed amount to the cent.</p></li>
@@ -99,7 +129,10 @@
   </section>
 
   <section class="band closing" aria-labelledby="closing-title">
-    <h2 id="closing-title">Walk through the sample application</h2>
+    <div>
+      <h2 id="closing-title">Walk through the sample application.</h2>
+      <p>Load the fictional file, read each finding with its calculation and evidence, correct it and export the result.</p>
+    </div>
     <a class="btn btn-primary" href="./app/" data-testid="cta-open-review-2">Open synthetic review</a>
   </section>
 </main>
